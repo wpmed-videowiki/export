@@ -1,0 +1,5 @@
+node_modules/
+tmp/+\.+
+videos/+\.mp4$
+audios/+\.+
+final/+\.mp4$
