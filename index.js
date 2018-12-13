@@ -12,7 +12,7 @@ const { getFileType } = require('./utils');
 function convertArticle(article) {
   const convertFuncArray = [];
 
-  article.slides.forEach((slide, index) => {
+  article.slides.sort((a,b) => a.position - b.position).forEach((slide, index) => {
     function convert(cb) {
       const fileName = `videos/${slide.audio.split('/').pop().replace('.mp3', '.mp4')}`
       if (getFileType(slide.media) === 'image') {
