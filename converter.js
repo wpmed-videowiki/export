@@ -40,6 +40,23 @@ module.exports = {
     })
   },
 
+  gifToVideo(gif, audio, outputPath, callback = () => {}) {
+    getRemoteFileDuration(audio, (err, duration) => {
+      console.log('duration is',err, duration)
+      if (err) {
+        return callback(err);
+      }
+      const command = `ffmpeg -i ${audio} -ignore_loop 0 -t ${duration} -i ${gif} -vf ${FFMPEG_SCALE} -shortest -strict -2 -c:v libx264 -threads 4 -c:a aac -b:a 192k -pix_fmt yuv420p -shortest ${outputPath}`;
+      exec(command, (err, stdout, stderr) => {
+        console.log('conveted ', err)
+        if (err) {
+          return callback(err)
+        };
+        return callback(null, outputPath)
+      })
+    })
+  },
+
   combineVideos(videos, callback = () => {}) {
     const listName = parseInt(Date.now() + Math.random() * 100000);
     const videoPath = `final/${listName}.mp4`;

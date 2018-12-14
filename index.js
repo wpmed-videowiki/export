@@ -3,7 +3,7 @@ const path = require('path');
 const { exec } = require('child_process');
 const async = require('async');
 
-const { imageToVideo, videoToVideo,combineVideos }  = require('./converter');
+const { imageToVideo, videoToVideo, gifToVideo ,combineVideos }  = require('./converter');
 const { getFileType, getRemoteFileDuration } = require('./utils');
 
 const APP_DIRS = ['./tmp', './videos', './final'];
@@ -15,7 +15,7 @@ APP_DIRS.forEach(dir => {
   }
 })
 
-const article = require('./article');
+const article = require('./blackhole');
 
 function convertArticle(article) {
   const convertFuncArray = [];
@@ -55,6 +55,16 @@ function convertArticle(article) {
          * if so, we will cut the first N seconds from the GIF to match the audio's
          * otherwise, proceed normally
          */
+        gifToVideo(slide.media, audioUrl, fileName, (err, result) => {
+          if (err) {
+            console.log('error in async ', err);
+            return cb(err);
+          }
+          return cb(null, {
+            fileName,
+            index
+          });
+        });
       } else {
         throw new Error('Invalid file type');
       }
@@ -75,4 +85,4 @@ function convertArticle(article) {
   })
 }
 
-convertArticle(article)
+// convertArticle(article)
