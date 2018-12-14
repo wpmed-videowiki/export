@@ -19,7 +19,8 @@ module.exports = {
   },
 
   getRemoteFileDuration(url, callback) {
-    const filePath = './tmp/audio-' + parseInt(Date.now() + Math.random() * 1000000) + '.' + url.split('.').pop();
+    const fileExt = url.split('.').pop();
+    const filePath = './tmp/file-' + parseInt(Date.now() + Math.random() * 1000000) + '.' + fileExt;
     request
       .get(url)
       .on('error', (err) => {
@@ -30,11 +31,20 @@ module.exports = {
         callback(err)
       })
       .on('finish', () => {
-        mp3Duration(filePath, (err, duration) => {
-          if (err) throw (err)
+        if (fileExt === 'mp3') {
+          
+          mp3Duration(filePath, (err, duration) => {
+            if (err) throw (err)
+            fs.unlink(filePath)
+            callback(null, duration)
+          })
+        } else if (VIDEOS_EXTESION.indexOf(fileExt) > -1) {
+          // Get video file duration
+          
+        } else {
           fs.unlink(filePath)
-          callback(null, duration)
-        })
+          return callback(new Error('File format is not supported'));
+        }
       })
   },
   getRemoteFile(url, callback) {

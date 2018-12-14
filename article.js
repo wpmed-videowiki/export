@@ -44,14 +44,14 @@ module.exports = {
     "mediaType": "image",
     "media": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/US_President_Barack_Obama_taking_his_Oath_of_Office_-_2009Jan20.jpg/400px-US_President_Barack_Obama_taking_his_Oath_of_Office_-_2009Jan20.jpg"
   },
-  //  {
-  //   "date": "2018-11-09T09:50:07.687Z",
-  //   "position": 2,
-  //   "audio": "//dnv8xrxt73v5u.cloudfront.net/569dc7ff-6c9d-4e18-9409-e3053cad9857.mp3",
-  //   "text": "Obama was born in 1961 in <a href=\"/wiki/Honolulu?wikiSource=https://en.wikipedia.org\">Honolulu</a>, <a href=\"/wiki/Hawaii?wikiSource=https://en.wikipedia.org\">Hawaii</a>, two years after the territory was <a href=\"/wiki/Hawaii_Admission_Act?wikiSource=https://en.wikipedia.org\">admitted to the Union</a> as the <a href=\"/wiki/List_of_U.S._states_by_date_of_admission_to_the_Union?wikiSource=https://en.wikipedia.org\">50th state</a>. Raised largely in Hawaii, he also lived for a year of his childhood in the <a href=\"/wiki/State_of_Washington?wikiSource=https://en.wikipedia.org\">State of Washington</a> and four years in <a href=\"/wiki/Indonesia?wikiSource=https://en.wikipedia.org\">Indonesia</a>",
-  //   "mediaType": "video",
-  //   "media": "https://upload.wikimedia.org/wikipedia/commons/8/8a/Obama_birth_and_childhood_slideshow.webm"
-  // },
+   {
+    "date": "2018-11-09T09:50:07.687Z",
+    "position": 2,
+    "audio": "//dnv8xrxt73v5u.cloudfront.net/569dc7ff-6c9d-4e18-9409-e3053cad9857.mp3",
+    "text": "Obama was born in 1961 in <a href=\"/wiki/Honolulu?wikiSource=https://en.wikipedia.org\">Honolulu</a>, <a href=\"/wiki/Hawaii?wikiSource=https://en.wikipedia.org\">Hawaii</a>, two years after the territory was <a href=\"/wiki/Hawaii_Admission_Act?wikiSource=https://en.wikipedia.org\">admitted to the Union</a> as the <a href=\"/wiki/List_of_U.S._states_by_date_of_admission_to_the_Union?wikiSource=https://en.wikipedia.org\">50th state</a>. Raised largely in Hawaii, he also lived for a year of his childhood in the <a href=\"/wiki/State_of_Washington?wikiSource=https://en.wikipedia.org\">State of Washington</a> and four years in <a href=\"/wiki/Indonesia?wikiSource=https://en.wikipedia.org\">Indonesia</a>",
+    "mediaType": "video",
+    "media": "https://upload.wikimedia.org/wikipedia/commons/8/8a/Obama_birth_and_childhood_slideshow.webm"
+  },
    {
     "date": "2018-11-09T09:50:08.464Z",
     "position": 3,
@@ -74,14 +74,14 @@ module.exports = {
     "mediaType": "image",
     "media": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Obama_and_Hilary_face_off_in_DNC_2008_primaries.png/400px-Obama_and_Hilary_face_off_in_DNC_2008_primaries.png"
   }, 
-  // {
-  //   "date": "2018-11-09T09:50:10.903Z",
-  //   "position": 6,
-  //   "audio": "//dnv8xrxt73v5u.cloudfront.net/49ecf351-3e40-407e-869b-c6f709801081.mp3",
-  //   "text": "In June 1989, Obama met <a href=\"/wiki/Michelle_Obama?wikiSource=https://en.wikipedia.org\">Michelle Robinson</a> when he was employed as a summer associate at the Chicago law firm of <a href=\"/wiki/Sidley_Austin?wikiSource=https://en.wikipedia.org\">Sidley Austin</a>. They began dating later that summer, became engaged in 1991, and were married on October 3, 1992",
-  //   "mediaType": "video",
-  //   "media": "https://upload.wikimedia.org/wikipedia/commons/3/30/Michelle_Obama_and_Barrack_Obama_slideshow.webm"
-  // }, 
+  {
+    "date": "2018-11-09T09:50:10.903Z",
+    "position": 6,
+    "audio": "//dnv8xrxt73v5u.cloudfront.net/49ecf351-3e40-407e-869b-c6f709801081.mp3",
+    "text": "In June 1989, Obama met <a href=\"/wiki/Michelle_Obama?wikiSource=https://en.wikipedia.org\">Michelle Robinson</a> when he was employed as a summer associate at the Chicago law firm of <a href=\"/wiki/Sidley_Austin?wikiSource=https://en.wikipedia.org\">Sidley Austin</a>. They began dating later that summer, became engaged in 1991, and were married on October 3, 1992",
+    "mediaType": "video",
+    "media": "https://upload.wikimedia.org/wikipedia/commons/3/30/Michelle_Obama_and_Barrack_Obama_slideshow.webm"
+  }, 
   {
     "date": "2018-11-09T09:50:11.649Z",
     "position": 7,
@@ -105,14 +105,14 @@ module.exports = {
     "position": 1,
     "text": "A member of the Democratic Party, he was the first African American to be elected to the presidency and previously served as a United States Senator from Illinois."
   },
-  //  {
-  //   "date": "2018-11-09T09:50:07.687Z",
-  //   "mediaType": "video",
-  //   "media": "https://upload.wikimedia.org/wikipedia/commons/8/8a/Obama_birth_and_childhood_slideshow.webm",
-  //   "audio": "//dnv8xrxt73v5u.cloudfront.net/569dc7ff-6c9d-4e18-9409-e3053cad9857.mp3",
-  //   "position": 2,
-  //   "text": "Obama was born in 1961 in Honolulu, Hawaii, two years after the territory was admitted to the Union as the 50th state. Raised largely in Hawaii, he also lived for a year of his childhood in the State of Washington and four years in Indonesia"
-  // }, 
+   {
+    "date": "2018-11-09T09:50:07.687Z",
+    "mediaType": "video",
+    "media": "https://upload.wikimedia.org/wikipedia/commons/8/8a/Obama_birth_and_childhood_slideshow.webm",
+    "audio": "//dnv8xrxt73v5u.cloudfront.net/569dc7ff-6c9d-4e18-9409-e3053cad9857.mp3",
+    "position": 2,
+    "text": "Obama was born in 1961 in Honolulu, Hawaii, two years after the territory was admitted to the Union as the 50th state. Raised largely in Hawaii, he also lived for a year of his childhood in the State of Washington and four years in Indonesia"
+  }, 
   {
     "date": "2018-11-09T09:50:08.464Z",
     "mediaType": "image",
@@ -135,14 +135,14 @@ module.exports = {
     "position": 5,
     "text": "In 2008, he was nominated for president a year after his campaign began and after a close primary campaign against Hillary Clinton. He was elected over Republican John McCain and was inaugurated on January 20, 2009. Nine months later, he was named the 2009 Nobel Peace Prize laureate."
   },
-  //  {
-  //   "date": "2018-11-09T09:50:10.903Z",
-  //   "mediaType": "video",
-  //   "media": "https://upload.wikimedia.org/wikipedia/commons/3/30/Michelle_Obama_and_Barrack_Obama_slideshow.webm",
-  //   "audio": "//dnv8xrxt73v5u.cloudfront.net/49ecf351-3e40-407e-869b-c6f709801081.mp3",
-  //   "position": 6,
-  //   "text": "In June 1989, Obama met Michelle Robinson when he was employed as a summer associate at the Chicago law firm of Sidley Austin. They began dating later that summer, became engaged in 1991, and were married on October 3, 1992"
-  // },
+   {
+    "date": "2018-11-09T09:50:10.903Z",
+    "mediaType": "video",
+    "media": "https://upload.wikimedia.org/wikipedia/commons/3/30/Michelle_Obama_and_Barrack_Obama_slideshow.webm",
+    "audio": "//dnv8xrxt73v5u.cloudfront.net/49ecf351-3e40-407e-869b-c6f709801081.mp3",
+    "position": 6,
+    "text": "In June 1989, Obama met Michelle Robinson when he was employed as a summer associate at the Chicago law firm of Sidley Austin. They began dating later that summer, became engaged in 1991, and were married on October 3, 1992"
+  },
    {
     "date": "2018-11-09T09:50:11.649Z",
     "mediaType": "image",
