@@ -46,7 +46,7 @@ module.exports = {
       if (err) {
         return callback(err);
       }
-      const command = `ffmpeg -i ${audio} -ignore_loop 0 -t ${duration} -i ${gif} -vf ${FFMPEG_SCALE} -shortest -strict -2 -c:v libx264 -threads 4 -c:a aac -b:a 192k -pix_fmt yuv420p -shortest ${outputPath}`;
+      const command = `ffmpeg -y -i ${audio} -ignore_loop 0 -t ${duration} -i ${gif} -vf ${FFMPEG_SCALE} -shortest -strict -2 -c:v libx264 -threads 4 -c:a aac -b:a 192k -pix_fmt yuv420p -shortest ${outputPath}`;
       exec(command, (err, stdout, stderr) => {
         console.log('conveted ', err)
         if (err) {
