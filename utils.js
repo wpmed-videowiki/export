@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const request = require('request');
 const mp3Duration = require('mp3-duration');
+const { exec } = require('child_process');
 
 
 const IMAGE_EXTENSIONS = ['jpeg', 'jpg', 'png'];
@@ -19,33 +20,16 @@ module.exports = {
   },
 
   getRemoteFileDuration(url, callback) {
-    const fileExt = url.split('.').pop();
-    const filePath = './tmp/file-' + parseInt(Date.now() + Math.random() * 1000000) + '.' + fileExt;
-    request
-      .get(url)
-      .on('error', (err) => {
-        throw (err)
-      })
-      .pipe(fs.createWriteStream(filePath))
-      .on('error', (err) => {
-        callback(err)
-      })
-      .on('finish', () => {
-        if (fileExt === 'mp3') {
-          
-          mp3Duration(filePath, (err, duration) => {
-            if (err) throw (err)
-            fs.unlink(filePath)
-            callback(null, duration)
-          })
-        } else if (VIDEOS_EXTESION.indexOf(fileExt) > -1) {
-          // Get video file duration
-          
-        } else {
-          fs.unlink(filePath)
-          return callback(new Error('File format is not supported'));
-        }
-      })
+    exec(`ffprobe -i ${url} -show_entries format=duration -v quiet -of csv="p=0"`, (err, stdout, stderr) => {
+      if (err) {
+        return callback(err);
+      }
+      if (stderr) {
+        return callback(stderr);
+      }
+      return callback(null, parseFloat(stdout.replace('\\n', '')))
+    })
+
   },
   getRemoteFile(url, callback) {
     const filePath = './tmp/file-' + parseInt(Date.now() + Math.random() * 1000000) + "." + url.split('.').pop();

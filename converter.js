@@ -23,32 +23,38 @@ module.exports = {
      * if so, we will cut the first N seconds from the video to match the audio's
      * otherwise, proceed normally
     */
-   console.log('before get duration')
-    getRemoteFileDuration(audio, (err, duration) => {
-      console.log('duration is',err, duration)
+    getRemoteFileDuration(audio, (err, audioDuration) => {
       if (err) {
         return callback(err);
       }
-      const command = `ffmpeg -y -t ${duration} -i ${video} -i ${audio} -c:v libx264 -c:a copy -b:a 192k -map 0:v:0 -map 1:a:0 -vf ${FFMPEG_SCALE} -shortest ${outputPath}`;
-      exec(command, (err, stdout, stderr) => {
-        console.log('conveted ', err)
-        if (err) {
-          return callback(err)
-        };
-        return callback(null, outputPath)
+
+      getRemoteFileDuration(video, (err, videoDuration) => {
+        if (err) return callback(err);
+        let command;
+        if (audioDuration <= videoDuration) {
+          command = `ffmpeg -y -t ${audioDuration} -i ${video} -i ${audio} -c:v libx264 -c:a copy -b:a 192k -map 0:v:0 -map 1:a:0 -vf ${FFMPEG_SCALE} -shortest ${outputPath}`;
+        } else {
+          const n_loops= parseInt((audioDuration / videoDuration) + 1);
+          command = `ffmpeg -y -protocol_whitelist file,tcp,http,https,tls -i ${audio} -f concat -protocol_whitelist file,tcp,http,https,tls -safe 0 -i <(for i in {1..${n_loops}}; do printf "file '${video}'\n"; done)  -c:v libx264 -c:a copy -b:a 192k -map 0:a:0 -map 1:v:0 -vf ${FFMPEG_SCALE} -shortest ${outputPath}` 
+        }
+        exec(command, {shell: '/bin/bash'}, (err, stdout, stderr) => {
+          if (err) {
+            return callback(err)
+          };
+          return callback(null, outputPath)
+        })
       })
     })
   },
 
   gifToVideo(gif, audio, outputPath, callback = () => {}) {
     getRemoteFileDuration(audio, (err, duration) => {
-      console.log('duration is',err, duration)
       if (err) {
         return callback(err);
       }
       const command = `ffmpeg -y -i ${audio} -ignore_loop 0 -t ${duration} -i ${gif} -vf ${FFMPEG_SCALE} -shortest -strict -2 -c:v libx264 -threads 4 -c:a aac -b:a 192k -pix_fmt yuv420p -shortest ${outputPath}`;
       exec(command, (err, stdout, stderr) => {
-        console.log('conveted ', err)
+        console.log('converted ', err)
         if (err) {
           return callback(err)
         };
@@ -74,7 +80,6 @@ module.exports = {
       exec(`ffmpeg ${fileNames} \
       -filter_complex "${filterComplex}concat=n=${videos.length}:v=1:a=1[outv][outa]" \
       -map "[outv]" -map "[outa]" ${videoPath}`, (err, stdout, stderr) => {
-        console.log(err, stdout, stderr)
         if (err) {
           callback(err);
         } else {
@@ -83,7 +88,7 @@ module.exports = {
         // clean up
         fs.unlink(`./${listName}.txt`);
         videos.forEach(video => {
-          fs.unlink(video.fileName);
+          // fs.unlink(video.fileName);
         })
       })
   
