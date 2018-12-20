@@ -6,36 +6,70 @@ const async = require('async');
 const mongoose = require('mongoose');
 
 const { imageToVideo, videoToVideo, gifToVideo ,combineVideos }  = require('./converter');
-const { getFileType, getRemoteFileDuration } = require('./utils');
+const { getFileType, getRemoteFileDuration, uploadVideoToS3 } = require('./utils');
 
-const Article = require('./models/Article');
+const ArticleModel = require('./models/Article');
+const VideoModel = require('./models/Video');
+
 
 const CONVERT_QUEUE = 'CONVERT_ARTICLE_QUEUE';
+const UPDLOAD_CONVERTED_TO_COMMONS_QUEUE = 'UPDLOAD_CONVERTED_TO_COMMONS_QUEUE';
+
+
+require('dotenv').config({path: '.env'});
 
 mongoose.connect('mongodb://localhost:27017/videowiki-test')
-
-
 amqp.connect('amqp://localhost', (err, conn) => {
-  conn.createChannel((err, ch) => {
-    ch.prefetch(1);
+  conn.createChannel((err, convertChannel) => {
+    convertChannel.prefetch(1);
 
-    ch.assertQueue(CONVERT_QUEUE, {durable: true});
-    
-    ch.consume(CONVERT_QUEUE, msg => {
-      const { id } = JSON.parse(msg.content.toString());
+    convertChannel.assertQueue(CONVERT_QUEUE, {durable: true});
+    convertChannel.assertQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, { durable: true });
 
+    convertChannel.consume(CONVERT_QUEUE, msg => {
+      const { videoId } = JSON.parse(msg.content.toString());
 
-      console.log('received ', id);
-      // ch.ack(msg)
-
-      Article.findOne({_id: id}, (err, article) => {
+      VideoModel.findById(videoId, (err, video) => {
         if (err) {
-          console.log('error fetching article ', err);
+          console.log('error retrieving video', err);
+          return convertChannel.ack(msg);
         }
-        console.log(article)
-        convertArticle(article, (err, videoPath) => {
+        if (!video) {
+          console.log('invalid video id');
+          return convertChannel.ack(msg);
+        }
 
-          ch.ack(msg);
+        ArticleModel.findOne({title: video.title, wikiSource: video.wikiSource, published: true}, (err, article) => {
+          if (err) {
+            console.log('error fetching article ', err);
+            return convertChannel.ack(msg);
+          }
+
+          // Update status
+          VideoModel.findByIdAndUpdate(videoId, {$set: {status: 'progress'}}, (err, result) => {
+          });
+          convertArticle({article, videoId}, (err, videoPath) => {
+            if (err) {
+              console.log(err);
+              return convertChannel.ack(msg);
+            }
+            uploadVideoToS3(videoPath, (err, {url, ETag}) => {
+              if (err) {
+                console.log('error uploading file', err);
+                return convertChannel.ack();
+              }
+              VideoModel.findByIdAndUpdate(videoId, { $set: {url, ETag, status: 'converted'} }, (err, result) => {
+                if (err) {
+                  console.log(err);
+                }
+                console.log('Done!')
+                convertChannel.ack(msg);
+                updateProgress(videoId, 100);
+                convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
+
+              })
+            })
+          })
         })
       })
 
@@ -45,81 +79,76 @@ amqp.connect('amqp://localhost', (err, conn) => {
 
 
 
-function convertArticle(article, callback) {
+function convertArticle({article, videoId}, callback) {
   const convertFuncArray = [];
+  let progress = 0;
+  
   article.slides.sort((a,b) => a.position - b.position).forEach((slide, index) => {
     function convert(cb) {
-      const fileName = `videos/${slide.audio.split('/').pop().replace('.mp3', '.mp4')}`
+      const fileName = `videos/${slide.audio.split('/').pop().replace('.mp3', '.webm')}`
       const audioUrl = 'https:' + slide.audio;
+      const convertCallback = (err, result) => {
+        if (err) {
+          console.log('error in async ', err);
+          return cb(err);
+        }
+        
+        progress += (1 / article.slides.length) * 100;
+        updateProgress(videoId, progress);
+
+        console.log(`Progress ####### ${progress} ######`)
+        return cb(null, {
+          fileName,
+          index
+        });
+      }
+
       if (!slide.media) {
         slide.media = 'https://s3.eu-central-1.amazonaws.com/vwpmedia/statics/default_image.png';
         slide.mediaType = 'image';
       }
 
       if (getFileType(slide.media) === 'image') {
-        imageToVideo(slide.media, audioUrl, fileName, (err, result) => {
-          if (err) {
-            console.log('error in async ', err);
-            return cb(err);
-          }
-          console.log(`Progress ####### ${index/article.slides.length * 100} ######`)
-          return cb(null, {
-            fileName,
-            index
-          });
-        });
-
+        imageToVideo(slide.media, audioUrl, fileName, convertCallback);
       } else if (getFileType(slide.media) === 'video') {
-        // Handle video
-        videoToVideo(slide.media, audioUrl, fileName, (err, result) => {
-          if (err) {
-            console.log('error in async ', err);
-            return cb(err);
-          }
-          return cb(null, {
-            fileName,
-            index
-          });
-        });
+        videoToVideo(slide.media, audioUrl, fileName, convertCallback);
       } else if (getFileType(slide.media) === 'gif') {
-        // Handle GIF
-         /**
-         * First we need to check if the GIF's length is greater than the audio's length,
-         * if so, we will cut the first N seconds from the GIF to match the audio's
-         * otherwise, proceed normally
-         */
-        gifToVideo(slide.media, audioUrl, fileName, (err, result) => {
-          if (err) {
-            console.log('error in async ', err);
-            return cb(err);
-          }
-          return cb(null, {
-            fileName,
-            index
-          });
-        });
+        gifToVideo(slide.media, audioUrl, fileName, convertCallback);
       } else {
-        throw new Error('Invalid file type');
+        return cb(new Error('Invalid file type'));
       }
 
     }
 
-    console.log('slide ', slide.media)
     convertFuncArray.push(convert);
   })
 
   async.parallelLimit(convertFuncArray, 2, (err, results) => {
     if (err) {
+      VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
+      })
       return callback(err);
     }
     results = results.sort((a, b) => a.index - b.index);
     combineVideos(results, (err, videoPath) => {
-      console.log(err, videoPath);
       if (err) {
+        console.log(err);
+        VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
+        })
         return callback(err);
       }
+
       return callback(null, videoPath)
     })
 
+  })
+}
+
+
+function updateProgress(videoId, conversionProgress) {
+  VideoModel.findByIdAndUpdate(videoId, {$set: { conversionProgress }}, (err, result) => {
+    if (err) {
+      console.log('error updating progress', err);
+    }
   })
 }

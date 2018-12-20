@@ -8,7 +8,7 @@ module.exports = {
   imageToVideo(image, audio, outputPath, callback = () => {}) {
 
     getRemoteFile(image, (err, image) => {
-      exec(`ffmpeg -y -framerate 25 -loop 1 -i ${image} -i ${audio} -c:v libx264 -c:a copy -b:a 192k -vf ${FFMPEG_SCALE} -shortest ${outputPath}`, (err, stdout, stderr) => {
+      exec(`ffmpeg -y -thread_queue_size 10000 -framerate 25 -loop 1 -i ${image} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -vf ${FFMPEG_SCALE} -shortest ${outputPath}`, (err, stdout, stderr) => {
         fs.unlink(image);
         if (err) {
           return callback(err);
@@ -32,10 +32,10 @@ module.exports = {
         if (err) return callback(err);
         let command;
         if (audioDuration <= videoDuration) {
-          command = `ffmpeg -y -t ${audioDuration} -i ${video} -i ${audio} -c:v libx264 -c:a copy -b:a 192k -map 0:v:0 -map 1:a:0 -vf ${FFMPEG_SCALE} -shortest ${outputPath}`;
+          command = `ffmpeg -y -t ${audioDuration} -i ${video} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -map 0:v:0 -map 1:a:0 -vf ${FFMPEG_SCALE} -shortest ${outputPath}`;
         } else {
           const n_loops= parseInt((audioDuration / videoDuration) + 1);
-          command = `ffmpeg -y -protocol_whitelist file,tcp,http,https,tls -i ${audio} -f concat -protocol_whitelist file,tcp,http,https,tls -safe 0 -i <(for i in {1..${n_loops}}; do printf "file '${video}'\n"; done)  -c:v libx264 -c:a copy -b:a 192k -map 0:a:0 -map 1:v:0 -vf ${FFMPEG_SCALE} -shortest ${outputPath}` 
+          command = `ffmpeg -y -thread_queue_size 10000 -protocol_whitelist file,tcp,http,https,tls -i ${audio} -f concat -protocol_whitelist file,tcp,http,https,tls -safe 0 -thread_queue_size 10000 -i <(for i in {1..${n_loops}}; do printf "file '${video}'\n"; done)  -c:v libvpx-vp9 -c:a libvorbis -map 0:a:0 -map 1:v:0 -vf ${FFMPEG_SCALE} -shortest ${outputPath}` 
         }
         exec(command, {shell: '/bin/bash'}, (err, stdout, stderr) => {
           if (err) {
@@ -52,7 +52,7 @@ module.exports = {
       if (err) {
         return callback(err);
       }
-      const command = `ffmpeg -y -i ${audio} -ignore_loop 0 -t ${duration} -i ${gif} -vf ${FFMPEG_SCALE} -shortest -strict -2 -c:v libx264 -threads 4 -c:a aac -b:a 192k -pix_fmt yuv420p -shortest ${outputPath}`;
+      const command = `ffmpeg -y -i ${audio} -ignore_loop 0 -t ${duration} -i ${gif} -vf ${FFMPEG_SCALE} -shortest -strict -2 -c:v libvpx-vp9 -threads 4 -c:a aac -pix_fmt yuv420p -shortest ${outputPath}`;
       exec(command, (err, stdout, stderr) => {
         console.log('converted ', err)
         if (err) {
@@ -65,7 +65,7 @@ module.exports = {
 
   combineVideos(videos, callback = () => {}) {
     const listName = parseInt(Date.now() + Math.random() * 100000);
-    const videoPath = `final/${listName}.mp4`;
+    const videoPath = `final/${listName}.webm`;
     fs.writeFile(`./${listName}.txt`, videos.map((video, index) => `file '${video.fileName}'`).join('\n'), (err, content) => {
       if (err) {
         videos.forEach(video => {
