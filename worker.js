@@ -31,35 +31,40 @@ amqp.connect('amqp://localhost', (err, conn) => {
 
       VideoModel.findById(videoId, (err, video) => {
         if (err) {
+          updateStatus(videoId, 'failed');
           console.log('error retrieving video', err);
           return convertChannel.ack(msg);
         }
         if (!video) {
           console.log('invalid video id');
+          updateStatus(videoId, 'failed');          
           return convertChannel.ack(msg);
         }
 
         ArticleModel.findOne({title: video.title, wikiSource: video.wikiSource, published: true}, (err, article) => {
           if (err) {
+            updateStatus(videoId, 'failed');
             console.log('error fetching article ', err);
             return convertChannel.ack(msg);
           }
 
           // Update status
-          VideoModel.findByIdAndUpdate(videoId, {$set: {status: 'progress'}}, (err, result) => {
-          });
+          updateStatus(videoId, 'progress');
           convertArticle({article, videoId}, (err, videoPath) => {
             if (err) {
+              updateStatus(videoId, 'failed');
               console.log(err);
               return convertChannel.ack(msg);
             }
             uploadVideoToS3(videoPath, (err, {url, ETag}) => {
               if (err) {
                 console.log('error uploading file', err);
+                updateStatus(videoId, 'failed');                
                 return convertChannel.ack();
               }
               VideoModel.findByIdAndUpdate(videoId, { $set: {url, ETag, status: 'converted'} }, (err, result) => {
                 if (err) {
+                  updateStatus(videoId, 'failed');                  
                   console.log(err);
                 }
                 console.log('Done!')
@@ -152,3 +157,16 @@ function updateProgress(videoId, conversionProgress) {
     }
   })
 }
+
+function updateStatus(videoId, status) {
+  VideoModel.findByIdAndUpdate(videoId, {$set: { status }}, (err, result) => {
+    if (err) {
+      console.log('error updating progress', err);
+    }
+  })
+}
+
+
+// videoToVideo("Introduction_Slide_to_Acute_Visual_Loss.webm", "111b26bb-0d30-4f26-85ab-cee051fbbd40.mp3", 'temp1.webm', (err, path) => {
+//   console.log(err, path)
+// })

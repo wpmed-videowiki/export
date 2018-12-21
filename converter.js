@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { exec } = require('child_process');
-const { getRemoteFile, getRemoteFileDuration } = require('./utils')
+const { getRemoteFile, getRemoteFileDuration, getVideoFramerate, getVideoDimentions } = require('./utils')
 
 const FFMPEG_SCALE = '"scale=w=1280:h=720,setsar=1:1,setdar=16:9,pad=1280:720:(ow-iw)/2:(oh-ih)/2"';
 
@@ -33,16 +33,30 @@ module.exports = {
         let command;
         if (audioDuration <= videoDuration) {
           command = `ffmpeg -y -t ${audioDuration} -i ${video} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -map 0:v:0 -map 1:a:0 -vf ${FFMPEG_SCALE} -shortest ${outputPath}`;
+          exec(command, {shell: '/bin/bash'}, (err, stdout, stderr) => {
+            if (err) {
+              return callback(err)
+            };
+            return callback(null, outputPath)
+          })
         } else {
-          const n_loops= parseInt((audioDuration / videoDuration) + 1);
-          command = `ffmpeg -y -thread_queue_size 10000 -protocol_whitelist file,tcp,http,https,tls -i ${audio} -f concat -protocol_whitelist file,tcp,http,https,tls -safe 0 -thread_queue_size 10000 -i <(for i in {1..${n_loops}}; do printf "file '${video}'\n"; done)  -c:v libvpx-vp9 -c:a libvorbis -map 0:a:0 -map 1:v:0 -vf ${FFMPEG_SCALE} -shortest ${outputPath}` 
+          getVideoFramerate(video, (err, frameRate) => {
+            if (err) {
+              return callback(err);
+            }
+            console.log('frame rate is ', frameRate)
+            getVideoDimentions(video, (err, videoDimentions) => {
+              console.log('dimentions is', videoDimentions)
+              command = `ffmpeg -y -f lavfi -i color=s=${videoDimentions}:d=${audioDuration}:r=${frameRate}:c=0xFFE4C4@0.0 -i ${video} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "[0:v][1:v]overlay[video];[video]scale=w=1280:h=720,setsar=1:1,setdar=16:9,pad=1280:720:(ow-iw)/2:(oh-ih)/2[video]" -map "[video]" -map 2:a -shortest ${outputPath}`; 
+              exec(command, {shell: '/bin/bash'}, (err, stdout, stderr) => {
+                if (err) {
+                  return callback(err)
+                };
+                return callback(null, outputPath)
+              })
+            })
+          })
         }
-        exec(command, {shell: '/bin/bash'}, (err, stdout, stderr) => {
-          if (err) {
-            return callback(err)
-          };
-          return callback(null, outputPath)
-        })
       })
     })
   },

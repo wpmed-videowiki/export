@@ -30,6 +30,33 @@ module.exports = {
     return 'unknown';
   },
 
+  getVideoFramerate(videoUrl, callback) {
+    exec(`ffprobe -v 0 -of csv=p=0 -select_streams 0 -show_entries stream=r_frame_rate ${videoUrl}`, (err, stdout, stderr) => {
+      if (err) {
+        return callback(err);
+      }
+      if (stderr) {
+        return callback(stderr);
+      }
+      const frameParts = stdout.split('/');
+      return callback(null, Math.ceil(parseInt(frameParts[0]/parseInt(frameParts[1]))));
+    })
+
+  },
+
+  getVideoDimentions(videoUrl, callback) {
+    exec(`ffprobe -v error -show_entries stream=width,height -of csv=p=0:s=x ${videoUrl}`, (err, stdout, stderr) => {
+      if (err) {
+        return callback(err);
+      }
+      if (stderr) {
+        return callback(stderr);
+      }
+      return callback(null, stdout.replace(/\n/g, ''));
+    })
+
+  },
+
   getRemoteFileDuration(url, callback) {
     exec(`ffprobe -i ${url} -show_entries format=duration -v quiet -of csv="p=0"`, (err, stdout, stderr) => {
       if (err) {
