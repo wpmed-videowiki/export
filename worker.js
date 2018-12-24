@@ -99,7 +99,7 @@ function convertArticle({article, videoId}, callback) {
         }
         
         progress += (1 / article.slides.length) * 100;
-        updateProgress(videoId, progress);
+        updateProgress(videoId, progress > 10 ? progress - 10 : 0);
 
         console.log(`Progress ####### ${progress} ######`)
         return cb(null, {
@@ -128,7 +128,7 @@ function convertArticle({article, videoId}, callback) {
     convertFuncArray.push(convert);
   })
 
-  async.parallelLimit(convertFuncArray, 2, (err, results) => {
+  async.parallelLimit(convertFuncArray, 5, (err, results) => {
     if (err) {
       VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
       })

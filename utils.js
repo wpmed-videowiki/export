@@ -23,7 +23,7 @@ const s3 = new AWS.S3({
 
 module.exports = {
   getFileType(fileUrl) {
-    const extension = fileUrl.split('.').pop();
+    const extension = fileUrl.split('.').pop().toLowerCase();
     if (IMAGE_EXTENSIONS.indexOf(extension) > -1) return 'image';
     if (VIDEOS_EXTESION.indexOf(extension) > -1) return 'video';
     if (GIF_EXTESIONS.indexOf(extension) > -1) return 'gif';
