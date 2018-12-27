@@ -99,5 +99,17 @@ module.exports = {
 
       return callback(null, {url, ETag});
     })
+  },
+  generateSubtitle(text, audio, callback) {
+    module.exports.getRemoteFileDuration(audio, (err, duration) => {
+      const subtitleName = parseInt(Date.now() + Math.random() * 100000) + '-sub.srt';
+      const subtitle = `1\n00:00:00,000 --> 00:00:${duration}\n${text}`;
+      fs.writeFile(`${subtitleName}`, subtitle, (err, done) => {
+        if (err) {
+          return callback(err);
+        }
+        return callback(null, subtitleName);
+      })
+    })
   }
 }

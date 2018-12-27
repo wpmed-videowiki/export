@@ -6,7 +6,7 @@ const async = require('async');
 const mongoose = require('mongoose');
 
 const { imageToVideo, videoToVideo, gifToVideo ,combineVideos }  = require('./converter');
-const { getFileType, getRemoteFileDuration, uploadVideoToS3 } = require('./utils');
+const { getFileType, getRemoteFileDuration, uploadVideoToS3, generateSubtitle } = require('./utils');
 
 const ArticleModel = require('./models/Article');
 const VideoModel = require('./models/Video');
@@ -109,16 +109,16 @@ function convertArticle({article, videoId}, callback) {
       }
 
       if (!slide.media) {
-        slide.media = 'https://s3.eu-central-1.amazonaws.com/vwpmedia/statics/default_image.png';
+        slide.media = 'https://s3-eu-west-1.amazonaws.com/vwconverter/static/rsz_1image_2.png';
         slide.mediaType = 'image';
       }
 
       if (getFileType(slide.media) === 'image') {
-        imageToVideo(slide.media, audioUrl, fileName, convertCallback);
+        imageToVideo(slide.media, audioUrl, slide.text, fileName, convertCallback);
       } else if (getFileType(slide.media) === 'video') {
-        videoToVideo(slide.media, audioUrl, fileName, convertCallback);
+        videoToVideo(slide.media, audioUrl, slide.text, fileName, convertCallback);
       } else if (getFileType(slide.media) === 'gif') {
-        gifToVideo(slide.media, audioUrl, fileName, convertCallback);
+        gifToVideo(slide.media, audioUrl, slide.text, fileName, convertCallback);
       } else {
         return cb(new Error('Invalid file type'));
       }
@@ -128,7 +128,7 @@ function convertArticle({article, videoId}, callback) {
     convertFuncArray.push(convert);
   })
 
-  async.parallelLimit(convertFuncArray, 5, (err, results) => {
+  async.parallelLimit(convertFuncArray, 2, (err, results) => {
     if (err) {
       VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
       })
@@ -169,4 +169,18 @@ function updateStatus(videoId, status) {
 
 // videoToVideo("Introduction_Slide_to_Acute_Visual_Loss.webm", "111b26bb-0d30-4f26-85ab-cee051fbbd40.mp3", 'temp1.webm', (err, path) => {
 //   console.log(err, path)
+// })
+
+// videoToVideo('https://upload.wikimedia.org/wikipedia/commons/0/08/Black_Hole_animation.webm', 'http://dnv8xrxt73v5u.cloudfront.net/47d21ab0-b65e-4a51-8491-f24e2b7df801.mp3', 'On 11 February 2016, the LIGO collaboration announced the first direct detection of gravitational waves, which also represented the first observation of a black hole merger. As of April 2018, six gravitational wave events have been observed that originated from merging black holes.', './vidsub.webm', (err, videoPath) => {
+
+// })
+
+// imageToVideo('https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Obama_and_Hilary_face_off_in_DNC_2008_primaries.png/400px-Obama_and_Hilary_face_off_in_DNC_2008_primaries.png', 
+// 'https://dnv8xrxt73v5u.cloudfront.net/549754ec-5e55-472f-8715-47120efc4567.mp3', 
+// 'He received national attention in 2004 with his March primary win, his well-received July Democratic National Convention keynote address, and his landslide November election to the Senate', './withsub.webm', (err, filePath) => {
+//   console.log(err, filePath)
+// })
+
+// generateSubtitle('Despite its invisible interior, the presence of a black hole can be inferred through its interaction with other matter and with electromagnetic radiation such as visible light', 'https://dnv8xrxt73v5u.cloudfront.net/58626ba7-4423-465d-b410-62fabd501472.mp3', () => {
+
 // })
