@@ -96,7 +96,7 @@ module.exports = {
 
   combineVideos(videos, callback = () => {}) {
     const listName = parseInt(Date.now() + Math.random() * 100000);
-    const videoPath = `final/${listName}.webm`;
+    const videoPath = `videos/${listName}.webm`;
     fs.writeFile(`./${listName}.txt`, videos.map((video, index) => `file '${video.fileName}'`).join('\n'), (err, content) => {
       if (err) {
         videos.forEach(video => {
@@ -124,6 +124,18 @@ module.exports = {
       })
   
     });
+  },
+
+  slowVideoRate(videoPath, callback) {
+    const slowVideo = parseInt(Date.now() + Math.random() * 100000);
+    const slowVideoPath = `final/${slowVideo}-slow.webm`;
+    exec(`ffmpeg -i ${videoPath} -filter_complex "[0:v]setpts=1.1*PTS[v];[0:a]atempo=0.9[a]" -map "[v]" -map "[a]" ${slowVideo}`, (err, stdout, stderr) => {
+      if (err) {
+        console.log('erro slowing down video', err, stderr);
+        return callback(err);
+      }
+      return callback(null, slowVideoPath);
+    })
   }
 
 

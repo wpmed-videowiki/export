@@ -5,7 +5,7 @@ const { exec } = require('child_process');
 const async = require('async');
 const mongoose = require('mongoose');
 
-const { imageToVideo, videoToVideo, gifToVideo ,combineVideos }  = require('./converter');
+const { imageToVideo, videoToVideo, gifToVideo ,combineVideos, slowVideoRate }  = require('./converter');
 const { getFileType, getRemoteFileDuration, uploadVideoToS3, generateSubtitle } = require('./utils');
 
 const ArticleModel = require('./models/Article');
@@ -143,7 +143,12 @@ function convertArticle({article, videoId}, callback) {
         return callback(err);
       }
 
-      return callback(null, videoPath)
+      slowVideoRate(videoPath, (err, slowVideoPath) => {
+        if (err) {
+          return callback(null, videoPath);
+        }
+        return callback(null, slowVideoPath);
+      })
     })
 
   })
