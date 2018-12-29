@@ -16,6 +16,7 @@ const VideoSchema = new Schema({
   url: String,
   ETag: String, // s3 tag id 
   error: String, 
+  withSubtitles: { type: Boolean, default: false },
   created_at: { type: Date, default: Date.now, index: true },
   updated_at: { type: Date, default: Date.now },
 })

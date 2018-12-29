@@ -91,13 +91,13 @@ module.exports = {
       Key: fileName,
       Body: fs.createReadStream(filePath),
       ContentType: 'video/mp4',
-    }, (err, {ETag}) => {
+    }, (err, res) => {
       if (err) {
         return callback(err);
       }
       const url = `https://s3-${REGION}.amazonaws.com/${BUCKET_NAME}/${fileName}`;
 
-      return callback(null, {url, ETag});
+      return callback(null, {url, ETag: res.ETag});
     })
   },
   generateSubtitle(text, audio, callback) {

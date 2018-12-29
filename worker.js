@@ -50,18 +50,19 @@ amqp.connect('amqp://localhost', (err, conn) => {
 
           // Update status
           updateStatus(videoId, 'progress');
-          convertArticle({article, videoId}, (err, videoPath) => {
+          convertArticle({ article, videoId, withSubtitles: video.withSubtitles }, (err, videoPath) => {
             if (err) {
               updateStatus(videoId, 'failed');
               console.log(err);
               return convertChannel.ack(msg);
             }
-            uploadVideoToS3(videoPath, (err, {url, ETag}) => {
+            uploadVideoToS3(videoPath, (err, result) => {
               if (err) {
                 console.log('error uploading file', err);
                 updateStatus(videoId, 'failed');                
                 return convertChannel.ack();
               }
+              const { url, ETag } = result;
               VideoModel.findByIdAndUpdate(videoId, { $set: {url, ETag, status: 'converted'} }, (err, result) => {
                 if (err) {
                   updateStatus(videoId, 'failed');                  
@@ -70,7 +71,7 @@ amqp.connect('amqp://localhost', (err, conn) => {
                 console.log('Done!')
                 convertChannel.ack(msg);
                 updateProgress(videoId, 100);
-                convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
+                // convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
 
               })
             })
@@ -84,7 +85,7 @@ amqp.connect('amqp://localhost', (err, conn) => {
 
 
 
-function convertArticle({article, videoId}, callback) {
+function convertArticle({ article, videoId, withSubtitles }, callback) {
   const convertFuncArray = [];
   let progress = 0;
   
@@ -114,11 +115,11 @@ function convertArticle({article, videoId}, callback) {
       }
 
       if (getFileType(slide.media) === 'image') {
-        imageToVideo(slide.media, audioUrl, slide.text, fileName, convertCallback);
+        imageToVideo(slide.media, audioUrl, slide.text, withSubtitles, fileName, convertCallback);
       } else if (getFileType(slide.media) === 'video') {
-        videoToVideo(slide.media, audioUrl, slide.text, fileName, convertCallback);
+        videoToVideo(slide.media, audioUrl, slide.text, withSubtitles, fileName, convertCallback);
       } else if (getFileType(slide.media) === 'gif') {
-        gifToVideo(slide.media, audioUrl, slide.text, fileName, convertCallback);
+        gifToVideo(slide.media, audioUrl, slide.text, withSubtitles, fileName, convertCallback);
       } else {
         return cb(new Error('Invalid file type'));
       }
@@ -176,16 +177,20 @@ function updateStatus(videoId, status) {
 //   console.log(err, path)
 // })
 
-// videoToVideo('https://upload.wikimedia.org/wikipedia/commons/0/08/Black_Hole_animation.webm', 'http://dnv8xrxt73v5u.cloudfront.net/47d21ab0-b65e-4a51-8491-f24e2b7df801.mp3', 'On 11 February 2016, the LIGO collaboration announced the first direct detection of gravitational waves, which also represented the first observation of a black hole merger. As of April 2018, six gravitational wave events have been observed that originated from merging black holes.', './vidsub.webm', (err, videoPath) => {
+// videoToVideo('https://upload.wikimedia.org/wikipedia/commons/0/08/Black_Hole_animation.webm', 'http://dnv8xrxt73v5u.cloudfront.net/47d21ab0-b65e-4a51-8491-f24e2b7df801.mp3', 'On 11 February 2016, the LIGO collaboration announced the first direct detection of gravitational waves, which also represented the first observation of a black hole merger. As of April 2018, six gravitational wave events have been observed that originated from merging black holes.', true, './vidsub.webm', (err, videoPath) => {
 
 // })
 
 // imageToVideo('https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Obama_and_Hilary_face_off_in_DNC_2008_primaries.png/400px-Obama_and_Hilary_face_off_in_DNC_2008_primaries.png', 
 // 'https://dnv8xrxt73v5u.cloudfront.net/549754ec-5e55-472f-8715-47120efc4567.mp3', 
-// 'He received national attention in 2004 with his March primary win, his well-received July Democratic National Convention keynote address, and his landslide November election to the Senate', './withsub.webm', (err, filePath) => {
+// 'He received national attention in 2004 with his March primary win, his well-received July Democratic National Convention keynote address, and his landslide November election to the Senate', true, './withsub.webm', (err, filePath) => {
 //   console.log(err, filePath)
 // })
 
 // generateSubtitle('Despite its invisible interior, the presence of a black hole can be inferred through its interaction with other matter and with electromagnetic radiation such as visible light', 'https://dnv8xrxt73v5u.cloudfront.net/58626ba7-4423-465d-b410-62fabd501472.mp3', () => {
 
+// })
+
+// gifToVideo('https://upload.wikimedia.org/wikipedia/commons/f/f4/Einstein_rings_zoom_web.gif', 'https://dnv8xrxt73v5u.cloudfront.net/549754ec-5e55-472f-8715-47120efc4567.mp3', 'He received national attention in 2004 with his March primary win, his well-received July Democratic National Convention keynote address, and his landslide November election to the Senate', true, 'gifsub.webm', (err, outpath) => {
+//   console.log(err, outpath)
 // })
