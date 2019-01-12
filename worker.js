@@ -18,11 +18,12 @@ const UPDLOAD_CONVERTED_TO_COMMONS_QUEUE = 'UPDLOAD_CONVERTED_TO_COMMONS_QUEUE';
 
 require('dotenv').config({path: '.env'});
 
-mongoose.connect('mongodb://localhost:27017/videowiki-test')
-amqp.connect('amqp://localhost', (err, conn) => {
+mongoose.connect(process.env.DB_HOST_URL)
+amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
+  console.log('error is', err);
   conn.createChannel((err, convertChannel) => {
     convertChannel.prefetch(1);
-
+    console.log('connection created')
     convertChannel.assertQueue(CONVERT_QUEUE, {durable: true});
     convertChannel.assertQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, { durable: true });
 

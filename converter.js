@@ -12,8 +12,8 @@ module.exports = {
       generateSubtitle(text, audio, (err, subtitlePath) => {
         if (err) return callback(err);
         exec(`ffmpeg -y -thread_queue_size 10000 -framerate 25 -loop 1 -i ${image} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? "" : `[outv];[outv]subtitles=${subtitlePath}:force_style='Fontsize=10'` }" -shortest ${outputPath}`, (err, stdout, stderr) => {
-          fs.unlink(image);
-          fs.unlink(subtitlePath);
+          fs.unlink(image, () => {});
+          fs.unlink(subtitlePath, () => {});
           if (err) {
             return callback(err);
           }
@@ -44,7 +44,7 @@ module.exports = {
           console.log('less than')
           command = `ffmpeg -y -t ${audioDuration} -i ${video} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -map 0:v:0 -map 1:a:0 -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? '' : `[outv];[outv]subtitles=${subtitlePath}:force_style='Fontsize=10'`}" -shortest ${outputPath}`;
           exec(command, {shell: '/bin/bash'}, (err, stdout, stderr) => {
-            fs.unlink(subtitlePath);            
+            fs.unlink(subtitlePath, () => {});            
             if (err) {
               return callback(err)
             };
@@ -58,7 +58,7 @@ module.exports = {
             getVideoDimentions(video, (err, videoDimentions) => {
               command = `ffmpeg -y -f lavfi -i color=s=${videoDimentions}:d=${audioDuration}:r=${frameRate}:c=0xFFE4C4@0.0 -i ${video} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "[0:v][1:v]overlay[video];[video]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2[video]${!withSubtitles ? '' : `;[video]subtitles=${subtitlePath}:force_style='Fontsize=10'[video]`}" -map "[video]" -map 2:a -shortest ${outputPath}`; 
               exec(command, {shell: '/bin/bash'}, (err, stdout, stderr) => {
-                fs.unlink(subtitlePath);
+                fs.unlink(subtitlePath, () => {});
                 if (err) {
                   console.log(err)
                   return callback(err)
@@ -84,7 +84,7 @@ module.exports = {
 
         const command = `ffmpeg -y -ignore_loop 0 -t ${duration} -i ${gif} -i ${audio} -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? '' : `[outv];[outv]subtitles=${subtitlePath}:force_style='Fontsize=10'`}" -shortest -strict -2 -c:v libvpx-vp9 -c:a libvorbis -threads 4 -pix_fmt yuv420p -shortest ${outputPath}`;
         exec(command, (err, stdout, stderr) => {
-          fs.unlink(subtitlePath);
+          fs.unlink(subtitlePath, () => {});
           if (err) {
             return callback(err)
           };
@@ -101,7 +101,7 @@ module.exports = {
     fs.writeFile(`./${listName}.txt`, videos.map((video, index) => `file '${video.fileName}'`).join('\n'), (err, content) => {
       if (err) {
         videos.forEach(video => {
-          fs.unlink(video.fileName);
+          fs.unlink(video.fileName, () => {});
         })
         return callback(err)
       }
@@ -118,9 +118,9 @@ module.exports = {
           callback(null, `${videoPath}`);
         }
         // clean up
-        fs.unlink(`./${listName}.txt`);
+        fs.unlink(`./${listName}.txt`, () => {});
         videos.forEach(video => {
-          fs.unlink(video.fileName);
+          fs.unlink(video.fileName, () => {});
         })
       })
   
