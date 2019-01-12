@@ -1,3 +1,4 @@
+require('dotenv').config({path: '.env'});
 const amqp = require('amqplib/callback_api');
 const fs = require('fs');
 const path = require('path');
@@ -16,7 +17,6 @@ const CONVERT_QUEUE = 'CONVERT_ARTICLE_QUEUE';
 const UPDLOAD_CONVERTED_TO_COMMONS_QUEUE = 'UPDLOAD_CONVERTED_TO_COMMONS_QUEUE';
 
 
-require('dotenv').config({path: '.env'});
 
 mongoose.connect(process.env.DB_HOST_URL)
 amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
