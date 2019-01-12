@@ -72,7 +72,7 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
                 console.log('Done!')
                 convertChannel.ack(msg);
                 updateProgress(videoId, 100);
-                // convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
+                convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
 
               })
             })
