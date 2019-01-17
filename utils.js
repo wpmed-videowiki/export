@@ -91,6 +91,7 @@ module.exports = {
       Key: fileName,
       Body: fs.createReadStream(filePath),
       ContentType: 'video/mp4',
+      ContentDisposition: 'attachement',
     }, (err, res) => {
       if (err) {
         return callback(err);
