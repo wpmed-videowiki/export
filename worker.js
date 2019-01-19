@@ -12,12 +12,11 @@ const { getFileType, getRemoteFileDuration, uploadVideoToS3, generateSubtitle } 
 const ArticleModel = require('./models/Article');
 const VideoModel = require('./models/Video');
 
-
-const CONVERT_QUEUE = 'CONVERT_ARTICLE_QUEUE';
-const UPDLOAD_CONVERTED_TO_COMMONS_QUEUE = 'UPDLOAD_CONVERTED_TO_COMMONS_QUEUE';
-
 const args = process.argv.slice(2);
 const lang = args[0];
+
+const CONVERT_QUEUE = `CONVERT_ARTICLE_QUEUE_${lang}`;
+const UPDLOAD_CONVERTED_TO_COMMONS_QUEUE = `UPDLOAD_CONVERTED_TO_COMMONS_QUEUE_${lang}`;
 
 const DB_CONNECTION = `${process.env.DB_HOST_URL}-${lang}`;
 console.log('connecting to database ', DB_CONNECTION);
