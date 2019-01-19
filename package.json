@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js && node_modules/pm2/bin/pm2 start worker.js -i 2 --name=videowiki_converter",
+    "start": "node index.js",
     "stop": "node_modules/pm2/bin/pm2 kill --name=videowiki_converter",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

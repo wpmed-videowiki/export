@@ -16,9 +16,11 @@ const VideoModel = require('./models/Video');
 const CONVERT_QUEUE = 'CONVERT_ARTICLE_QUEUE';
 const UPDLOAD_CONVERTED_TO_COMMONS_QUEUE = 'UPDLOAD_CONVERTED_TO_COMMONS_QUEUE';
 
+const args = process.argv.slice(2);
+const lang = args[0];
 
 
-mongoose.connect(process.env.DB_HOST_URL)
+mongoose.connect(`${process.env.DB_HOST_URL}-${lang}`)
 amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
   console.log('error is', err);
   conn.createChannel((err, convertChannel) => {
