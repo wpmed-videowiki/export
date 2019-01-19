@@ -11,12 +11,14 @@ APP_DIRS.forEach(dir => {
 })
 
 
-langs.forEach(function(lang) {
+langs.forEach(function(lang, index) {
   const command = `node_modules/pm2/bin/pm2 start worker.js -i ${lang === 'en' ? '2' : '1'} --name=videowiki_converter_${lang} -- ${lang}` 
-  console.log(command);
-  exec(command, (err) => {
-    if (err) {
-      console.log('error initializing ', lang, ports[index], err);
-    }
-  });
+  setTimeout(() => {
+    console.log(command);
+    exec(command, (err) => {
+      if (err) {
+        console.log('error initializing ', lang, ports[index], err);
+      }
+    });
+  }, index * 1500);
 })

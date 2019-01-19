@@ -19,8 +19,9 @@ const UPDLOAD_CONVERTED_TO_COMMONS_QUEUE = 'UPDLOAD_CONVERTED_TO_COMMONS_QUEUE';
 const args = process.argv.slice(2);
 const lang = args[0];
 
-
-mongoose.connect(`${process.env.DB_HOST_URL}-${lang}`)
+const DB_CONNECTION = `${process.env.DB_HOST_URL}-${lang}`;
+console.log('connecting to database ', DB_CONNECTION);
+mongoose.connect(DB_CONNECTION)
 amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
   console.log('error is', err);
   conn.createChannel((err, convertChannel) => {
