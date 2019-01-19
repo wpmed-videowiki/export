@@ -176,6 +176,13 @@ function updateStatus(videoId, status) {
   })
 }
 
+ArticleModel.count({}, (err, count) => {
+  if (err) {
+    console.log(err);
+  } else {
+    console.log(`Ready to handle a total of ${count} articles in the database!`)
+  }
+})
 
 // videoToVideo("Introduction_Slide_to_Acute_Visual_Loss.webm", "111b26bb-0d30-4f26-85ab-cee051fbbd40.mp3", 'temp1.webm', (err, path) => {
 //   console.log(err, path)
