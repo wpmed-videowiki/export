@@ -5,13 +5,15 @@ const { getRemoteFile, getRemoteFileDuration, getVideoFramerate, getVideoDimenti
 const FFMPEG_SCALE = '[0:v]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2';
 
 module.exports = {
-  imageToVideo(image, audio, text, withSubtitles, outputPath, callback = () => {}) {
-
+  imageToVideo(image, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
+    console.log('image to video')
     getRemoteFile(image, (err, image) => {
+      console.log('got file')
       if (err) return callback(err);
       generateSubtitle(text, audio, (err, subtitlePath) => {
+        console.log('got subtitles')
         if (err) return callback(err);
-        exec(`ffmpeg -y -thread_queue_size 10000 -framerate 25 -loop 1 -i ${image} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? "" : `[outv];[outv]subtitles=${subtitlePath}:force_style='Fontsize=10'` }" -shortest ${outputPath}`, (err, stdout, stderr) => {
+        exec(`ffmpeg -y -thread_queue_size 10000 -framerate 25 -loop 1 -i ${image} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? "" : `[outv];[outv]subtitles=${subtitlePath}:force_style='Fontsize=10${subtext ? ",MarginV=20'" : "'"}` }${!subtext ? "" : `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=(ih-30):color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${subtext}':fontcolor=white:fontsize=12:x=10:y=(h-20)[outv];[outv]format=yuv420p`}" -shortest ${outputPath}`, (err, stdout, stderr) => {
           fs.unlink(image, () => {});
           fs.unlink(subtitlePath, () => {});
           if (err) {
@@ -23,7 +25,7 @@ module.exports = {
       
     })
   },
-  videoToVideo(video, audio, text, withSubtitles, outputPath, callback = () => {}) {
+  videoToVideo(video, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
     /**
      * First we need to check if the video's length is greater than the audio's length,
      * if so, we will cut the first N seconds from the video to match the audio's
@@ -41,8 +43,7 @@ module.exports = {
         if (err) return callback(err);
         let command;
         if (audioDuration <= videoDuration) {
-          console.log('less than')
-          command = `ffmpeg -y -t ${audioDuration} -i ${video} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -map 0:v:0 -map 1:a:0 -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? '' : `[outv];[outv]subtitles=${subtitlePath}:force_style='Fontsize=10'`}" -shortest ${outputPath}`;
+          command = `ffmpeg -y -t ${audioDuration} -i ${video} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -map 0:v:0 -map 1:a:0 -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? '' : `[outv];[outv]subtitles=${subtitlePath}:force_style='Fontsize=10${subtext ? ",MarginV=20'" : "'"}` }${!subtext ? "" : `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=(ih-30):color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${subtext}':fontcolor=white:fontsize=12:x=10:y=(h-20)[outv];[outv]format=yuv420p`}" -shortest ${outputPath}`;
           exec(command, {shell: '/bin/bash'}, (err, stdout, stderr) => {
             fs.unlink(subtitlePath, () => {});            
             if (err) {
@@ -56,7 +57,9 @@ module.exports = {
               return callback(err);
             }
             getVideoDimentions(video, (err, videoDimentions) => {
-              command = `ffmpeg -y -f lavfi -i color=s=${videoDimentions}:d=${audioDuration}:r=${frameRate}:c=0xFFE4C4@0.0 -i ${video} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "[0:v][1:v]overlay[video];[video]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2[video]${!withSubtitles ? '' : `;[video]subtitles=${subtitlePath}:force_style='Fontsize=10'[video]`}" -map "[video]" -map 2:a -shortest ${outputPath}`; 
+              // ${subtext ? ",MarginV=20'" : "'"}` }${!subtext ? "" : `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=(ih-30):color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${subtext}':fontcolor=white:fontsize=12:x=10:y=(h-20)[outv];[outv]format=yuv420p`}"
+              // 
+              command = `ffmpeg -y -f lavfi -i color=s=${videoDimentions}:d=${audioDuration}:r=${frameRate}:c=0xFFE4C4@0.0 -i ${video} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "[0:v][1:v]overlay[outv];[outv]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2[outv]${!withSubtitles ? '' : `;[outv]subtitles=${subtitlePath}:force_style='Fontsize=10${subtext ? ",MarginV=20'" : "'[outv]"}` }${!subtext ? "" : `${withSubtitles ? '[outv]': '' };[outv]format=yuv444p[outv];[outv]drawbox=y=(ih-30):color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${subtext}':fontcolor=white:fontsize=12:x=10:y=(h-20)[outv];[outv]format=yuv420p[outv]`}" -map "[outv]" -map 2:a -shortest ${outputPath}`;
               exec(command, {shell: '/bin/bash'}, (err, stdout, stderr) => {
                 fs.unlink(subtitlePath, () => {});
                 if (err) {
@@ -74,7 +77,7 @@ module.exports = {
     
   },
 
-  gifToVideo(gif, audio, text, withSubtitles, outputPath, callback = () => {}) {
+  gifToVideo(gif, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
     getRemoteFileDuration(audio, (err, duration) => {
       if (err) {
         return callback(err);
@@ -82,7 +85,7 @@ module.exports = {
       generateSubtitle(text, audio, (err, subtitlePath) => {
         if (err) return callback(err);
 
-        const command = `ffmpeg -y -ignore_loop 0 -t ${duration} -i ${gif} -i ${audio} -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? '' : `[outv];[outv]subtitles=${subtitlePath}:force_style='Fontsize=10'`}" -shortest -strict -2 -c:v libvpx-vp9 -c:a libvorbis -threads 4 -pix_fmt yuv420p -shortest ${outputPath}`;
+        const command = `ffmpeg -y -ignore_loop 0 -t ${duration} -i ${gif} -i ${audio} -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? '' : `[outv];[outv]subtitles=${subtitlePath}:force_style='Fontsize=10${subtext ? ",MarginV=20'" : "'"}` }${!subtext ? "" : `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=(ih-30):color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${subtext}':fontcolor=white:fontsize=12:x=10:y=(h-20)[outv];[outv]format=yuv420p`}" -shortest -strict -2 -c:v libvpx-vp9 -c:a libvorbis -threads 4 -pix_fmt yuv420p -shortest ${outputPath}`;
         exec(command, (err, stdout, stderr) => {
           fs.unlink(subtitlePath, () => {});
           if (err) {

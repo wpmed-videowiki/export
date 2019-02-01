@@ -5,9 +5,11 @@ const path = require('path');
 const { exec } = require('child_process');
 const async = require('async');
 const mongoose = require('mongoose');
+const cheerio = require('cheerio');
 
 const { imageToVideo, videoToVideo, gifToVideo ,combineVideos, slowVideoRate }  = require('./converter');
-const { getFileType, getRemoteFileDuration, uploadVideoToS3, generateSubtitle } = require('./utils');
+const { getFileType, getRemoteFileDuration, uploadVideoToS3, generateSubtitle, getMediaInfo } = require('./utils');
+const { DEFAUL_IMAGE_URL } = require('./constants');
 
 const ArticleModel = require('./models/Article');
 const VideoModel = require('./models/Video');
@@ -91,8 +93,7 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
 function convertArticle({ article, videoId, withSubtitles }, callback) {
   const convertFuncArray = [];
   let progress = 0;
-  
-  article.slides.sort((a,b) => a.position - b.position).forEach((slide, index) => {
+  article.slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
     function convert(cb) {
       const fileName = `videos/${slide.audio.split('/').pop().replace('.mp3', '.webm')}`
       const audioUrl = 'https:' + slide.audio;
@@ -112,21 +113,36 @@ function convertArticle({ article, videoId, withSubtitles }, callback) {
         });
       }
 
+
       if (!slide.media) {
-        slide.media = 'https://s3-eu-west-1.amazonaws.com/vwconverter/static/rsz_1image_2.png';
+        slide.media = DEFAUL_IMAGE_URL;
         slide.mediaType = 'image';
       }
-
-      if (getFileType(slide.media) === 'image') {
-        imageToVideo(slide.media, audioUrl, slide.text, withSubtitles, fileName, convertCallback);
-      } else if (getFileType(slide.media) === 'video') {
-        videoToVideo(slide.media, audioUrl, slide.text, withSubtitles, fileName, convertCallback);
-      } else if (getFileType(slide.media) === 'gif') {
-        gifToVideo(slide.media, audioUrl, slide.text, withSubtitles, fileName, convertCallback);
-      } else {
-        return cb(new Error('Invalid file type'));
-      }
-
+      getMediaInfo(slide.media, (err, info) => {
+        let subtitle = '';
+        if (err) {
+          console.log('error fetching media author and licence', err)
+        } else {
+          if (info.author) {
+            subtitle = `Visual Content by ${info.author}, `
+          }
+          if (info.licence) {
+            subtitle += info.licence
+          }
+        }
+        const $ = cheerio.load(`<div>${slide.text}</div>`);
+        const slideText = $.text();
+        
+        if (getFileType(slide.media) === 'image') {
+          imageToVideo(slide.media, audioUrl, slideText, subtitle, withSubtitles, fileName, convertCallback);
+        } else if (getFileType(slide.media) === 'video') {
+          videoToVideo(slide.media, audioUrl, slideText, subtitle, withSubtitles, fileName, convertCallback);
+        } else if (getFileType(slide.media) === 'gif') {
+          gifToVideo(slide.media, audioUrl, slideText, subtitle, withSubtitles, fileName, convertCallback);
+        } else {
+          return cb(new Error('Invalid file type'));
+        }
+      })
     }
 
     convertFuncArray.push(convert);
@@ -187,13 +203,13 @@ ArticleModel.count({}, (err, count) => {
 //   console.log(err, path)
 // })
 
-// videoToVideo('https://upload.wikimedia.org/wikipedia/commons/0/08/Black_Hole_animation.webm', 'http://dnv8xrxt73v5u.cloudfront.net/47d21ab0-b65e-4a51-8491-f24e2b7df801.mp3', 'On 11 February 2016, the LIGO collaboration announced the first direct detection of gravitational waves, which also represented the first observation of a black hole merger. As of April 2018, six gravitational wave events have been observed that originated from merging black holes.', true, './vidsub.webm', (err, videoPath) => {
-
+// videoToVideo('https://upload.wikimedia.org/wikipedia/commons/0/08/Black_Hole_animation.webm', 'http://dnv8xrxt73v5u.cloudfront.net/47d21ab0-b65e-4a51-8491-f24e2b7df801.mp3', 'On 11 February 2016, the LIGO collaboration announced the first direct detection of gravitational waves, which also represented the first observation of a black hole merger. As of April 2018, six gravitational wave events have been observed that originated from merging black holes.', '', true, './vidsub.webm', (err, videoPath) => {
+//   console.log(err, videoPath);
 // })
 
 // imageToVideo('https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Obama_and_Hilary_face_off_in_DNC_2008_primaries.png/400px-Obama_and_Hilary_face_off_in_DNC_2008_primaries.png', 
 // 'https://dnv8xrxt73v5u.cloudfront.net/549754ec-5e55-472f-8715-47120efc4567.mp3', 
-// 'He received national attention in 2004 with his March primary win, his well-received July Democratic National Convention keynote address, and his landslide November election to the Senate', true, './withsub.webm', (err, filePath) => {
+// cheerio.load('He received <a href="">hello im a link</a> national attention in 2004 with his March primary win, his well-received July Democratic National Convention keynote address, and his landslide November election to the Senate').text(), '', true, './withsub.webm', (err, filePath) => {
 //   console.log(err, filePath)
 // })
 
@@ -201,6 +217,12 @@ ArticleModel.count({}, (err, count) => {
 
 // })
 
-// gifToVideo('https://upload.wikimedia.org/wikipedia/commons/f/f4/Einstein_rings_zoom_web.gif', 'https://dnv8xrxt73v5u.cloudfront.net/549754ec-5e55-472f-8715-47120efc4567.mp3', 'He received national attention in 2004 with his March primary win, his well-received July Democratic National Convention keynote address, and his landslide November election to the Senate', true, 'gifsub.webm', (err, outpath) => {
+// gifToVideo('https://upload.wikimedia.org/wikipedia/commons/f/f4/Einstein_rings_zoom_web.gif', 'https://dnv8xrxt73v5u.cloudfront.net/549754ec-5e55-472f-8715-47120efc4567.mp3', 'He received national attention in 2004 with his March primary win, his well-received July Democratic National Convention keynote address, and his landslide November election to the Senate', '', true, 'gifsub.webm', (err, outpath) => {
 //   console.log(err, outpath)
 // })
+
+
+
+// GETTING CONTRIBUTORS LSIT 
+//  https://en.wikipedia.org/w/api.php?action=query&format=json&prop=contributors&titles=Wikipedia:MEDSKL/Acute_vision_loss&explaintext=1&exsectionformat=wiki&redirects
+

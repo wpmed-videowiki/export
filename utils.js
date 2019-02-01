@@ -4,7 +4,8 @@ const request = require('request');
 const mp3Duration = require('mp3-duration');
 const { exec } = require('child_process');
 const AWS = require('aws-sdk');
-
+const wikijs = require('wikijs').default;
+const cheerio = require('cheerio');
 
 const BUCKET_NAME = 'vwconverter'
 const REGION = 'eu-west-1';
@@ -20,6 +21,36 @@ const s3 = new AWS.S3({
   secretAccessKey: process.env.S3_ACCESS_SECRET
 })
 
+function normalizeTitle(title) {
+  return decodeURI(title.replace(new RegExp('%2C', 'g'), ','));
+}
+
+function getOriginalCommonsUrl(thumbnailPath) {
+  if (!thumbnailPath) return null
+
+    // Check if it's a thumbnail image or not (can be a video/gif)
+    if (thumbnailPath.indexOf('thumb') > -1 ) {
+      const re = /(upload\.wikimedia\.org).*(commons\/thumb\/.*\/.*\/)/
+      const match = thumbnailPath.match(re)
+      if (match && match.length === 3) {
+        const pathParts = match[2].split('/')
+        // Remove trailing / character
+        pathParts.pop()
+        return normalizeTitle(pathParts[pathParts.length - 1]);
+        // return `https://commons.wikimedia.org/wiki/File:${pathParts[pathParts.length - 1]}`;
+      }
+    } else {
+      const re = /(upload\.wikimedia\.org).*(commons\/.*\/.*)/
+      const match = thumbnailPath.match(re)
+      if (match && match.length === 3) {
+        const pathParts = match[2].split('/')
+        return normalizeTitle(pathParts[pathParts.length - 1]);
+        // return `https://commons.wikimedia.org/wiki/File:${pathParts[pathParts.length - 1]}`;
+      }
+    }
+
+    return null
+}
 
 module.exports = {
   getFileType(fileUrl) {
@@ -112,5 +143,66 @@ module.exports = {
         return callback(null, subtitleName);
       })
     })
+  },
+  getMediaInfo(url, callback) {
+    const filePageTitle = getOriginalCommonsUrl(url);
+    if (!filePageTitle) {
+      setTimeout(() => {
+        return callback(new Error(`Invalid url ${url}`), null);
+      }, 100);
+    } else {
+
+      wikijs({
+        apiUrl: 'https://commons.wikimedia.org/w/api.php',
+        origin: null
+      })
+      // .page('File:Match_Cup_Norway_2018_88.jpg')
+      .page(`File:${filePageTitle}`)
+      .then(page => page.html())
+      .then(pageHtml => {
+        if (pageHtml) {
+          const $ = cheerio.load(pageHtml);
+          // First we get the licence info
+          let licence = $('.licensetpl').find('.licensetpl_short').first().text();
+          if (licence) {
+            licence = licence.trim();
+          }
+          // Now we get the Author
+          let author = '';
+          let authorWrapper = $('#fileinfotpl_aut').first().next();
+          if (authorWrapper.children().length > 1) {
+            author = authorWrapper.find('#creator').text();
+            if (!author) {
+              author = authorWrapper.text();
+            }
+          } else {
+            author = authorWrapper.text();
+          }
+          if (author) {
+            author = author.trim().replace('User:', '');
+          }
+
+          return callback(null, { author, licence });
+        } else {
+          return callback(null, null);
+        }
+      })
+      .catch(err => callback(err));
+    }
   }
 }
+
+// // console.log(wikijs)
+// module.exports.getMediaInfo('https://upload.wikimedia.org/wikipedia/commons/1/1d/Black-Hole-devouring-a-neutron-star-artist-animation-2x.webm', (err, result) => {
+//   console.log(err, result);
+// })
+
+// module.exports.getMediaInfo('https://upload.wikimedia.org/wikipedia/commons/a/ac/Katherine_Maher_Introduction_and_previous_work_experience_slide.webm', (err, result) => {
+//   console.log(err, result);
+// })
+
+
+// module.exports.getMediaInfo('https://upload.wikimedia.org/wikipedia/commons/f/f4/Einstein_rings_zoom_web.gif', (err, result) => {
+//   console.log(err, result);
+// })
+
