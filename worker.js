@@ -52,6 +52,7 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
             console.log('error fetching article ', err);
             return convertChannel.ack(msg);
           }
+          console.log('convertin article ', article.title)
 
           // Update status
           updateStatus(videoId, 'progress');
@@ -68,6 +69,7 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
                 return convertChannel.ack();
               }
               const { url, ETag } = result;
+              // console.log('converted at ', url)
               VideoModel.findByIdAndUpdate(videoId, { $set: {url, ETag, status: 'converted'} }, (err, result) => {
                 if (err) {
                   updateStatus(videoId, 'failed');                  
