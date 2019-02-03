@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const cheerio = require('cheerio');
 
 const { imageToVideo, videoToVideo, gifToVideo ,combineVideos, slowVideoRate }  = require('./converter');
-const { getFileType, getRemoteFileDuration, uploadVideoToS3, generateSubtitle, getMediaInfo } = require('./utils');
+const { getFileType, getRemoteFileDuration, uploadVideoToS3, generateSubtitle, getMediaInfo, generateReferencesVideos, generateCreditsVideos } = require('./utils');
 const { DEFAUL_IMAGE_URL } = require('./constants');
 
 const ArticleModel = require('./models/Article');
@@ -21,6 +21,7 @@ const CONVERT_QUEUE = `CONVERT_ARTICLE_QUEUE_${lang}`;
 const UPDLOAD_CONVERTED_TO_COMMONS_QUEUE = `UPDLOAD_CONVERTED_TO_COMMONS_QUEUE_${lang}`;
 
 const DB_CONNECTION = `${process.env.DB_HOST_URL}-${lang}`;
+// const DB_CONNECTION = 'mongodb://localhost/videowiki-en'
 console.log('connecting to database ', DB_CONNECTION);
 mongoose.connect(DB_CONNECTION)
 amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
@@ -157,22 +158,45 @@ function convertArticle({ article, videoId, withSubtitles }, callback) {
       return callback(err);
     }
     results = results.sort((a, b) => a.index - b.index);
-    combineVideos(results, (err, videoPath) => {
+    generateCreditsVideos(article.title, article.wikiSource, (err, creditsVideos) => {
       if (err) {
-        console.log(err);
-        VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
-        })
-        return callback(err);
+        console.log('error creating credits videos', err);
       }
-
-      slowVideoRate(videoPath, (err, slowVideoPath) => {
+      generateReferencesVideos(article.title, article.wikiSource, article.referencesList, (err, referencesVideos) => {
         if (err) {
-          return callback(null, videoPath);
+          console.log('error creating references videos', generateReferencesVideos);
         }
-        return callback(null, slowVideoPath);
-      })
-    })
+        let finalVideos = [];
+        if (results) {
+          finalVideos = finalVideos.concat(results);
+        }
+        // Add Share video
+        finalVideos.push({ fileName: 'cc_share.webm', });
+        if (creditsVideos && creditsVideos.length > 0) {
+          finalVideos = finalVideos.concat(creditsVideos);
+        }
+        if (referencesVideos && referencesVideos.length > 0) {
+          finalVideos = finalVideos.concat(referencesVideos);
+        }
 
+        combineVideos(finalVideos, (err, videoPath) => {
+          if (err) {
+            console.log(err);
+            VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
+            })
+            return callback(err);
+          }
+          
+          slowVideoRate(videoPath, (err, slowVideoPath) => {
+            if (err) {
+              return callback(null, videoPath);
+            }
+            return callback(null, slowVideoPath);
+          })
+        })
+      })
+
+    })
   })
 }
 
@@ -228,3 +252,10 @@ ArticleModel.count({}, (err, count) => {
 // GETTING CONTRIBUTORS LSIT 
 //  https://en.wikipedia.org/w/api.php?action=query&format=json&prop=contributors&titles=Wikipedia:MEDSKL/Acute_vision_loss&explaintext=1&exsectionformat=wiki&redirects
 
+
+// ArticleModel.findOne({title: 'Elon_Musk', published: true}, (err, article) => {
+//   // generateCreditsVideos(article.title, article.wikiSource, (err, result) => {
+//   //   console.log(err, result);
+//   // });
+  
+// })

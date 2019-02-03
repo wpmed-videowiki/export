@@ -105,7 +105,7 @@ module.exports = {
     fs.writeFile(`./${listName}.txt`, videos.map((video, index) => `file '${video.fileName}'`).join('\n'), (err, content) => {
       if (err) {
         videos.forEach(video => {
-          fs.unlink(video.fileName, () => {});
+          // fs.unlink(video.fileName, () => {});
         })
         return callback(err)
       }
@@ -124,7 +124,7 @@ module.exports = {
         // clean up
         fs.unlink(`./${listName}.txt`, () => {});
         videos.forEach(video => {
-          fs.unlink(video.fileName, () => {});
+          // fs.unlink(video.fileName, () => {});
         })
       })
   

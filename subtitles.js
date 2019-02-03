@@ -3,7 +3,7 @@ const path = require('path');
 const utils = require('./utils');
 
 function generateSubtitle(text, audio, callback) {
-  const subtitleText = text.replace(/\[([1-9])\]/g, '{\\c&HFF2E00&}[$1]{\\c&HFFFFFF&}');
+  const subtitleText = text.replace(/\[([0-9]+)\]/g, '{\\c&HFF2E00&}[$1]{\\c&HFFFFFF&}');
 
   utils.getRemoteFileDuration(audio, (err, duration) => {
 

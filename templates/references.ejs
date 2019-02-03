@@ -1,0 +1,53 @@
+<html>
+
+<head>
+  <title>References</title>
+  <style>
+    ol {
+      /* text-align: center; */
+    }
+
+    li {
+      font-size: 14px;
+      width: 50%;
+      margin: 0 auto;
+    }
+
+    li .content {
+      margin-bottom: 10px;
+    }
+
+    li a {
+      color: black;
+      word-break: break-all;
+    }
+
+    li a.ref_link {
+      color: #624FF7;
+    }
+  </style>
+</head>
+
+<body>
+  <h1 style="text-align:center; margin-top:20px;">References</h1>
+  <ol start="<%= start %>">
+    <% for (var i = 0; i < references.length; i++) { %>
+      <li>
+        <div class="content">
+          <%= references[i].html %>
+        </div>
+        <% if (references[i].links && references[i].links.length > 0) { %>
+          <% for (var j = 0; j < references[i].links.length; j++) { %>
+            <p>
+              <a class="ref_link" href="javascript:void(0)">
+                <%= references[i].links[j] %>
+              </a>
+          </p>
+          <% } %>
+        <% } %>
+      </li>
+      <% } %>
+  </ol>
+</body>
+
+</html>

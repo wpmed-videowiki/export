@@ -42,6 +42,7 @@ const ArticleSchema = new Schema({
   },
   created_at: { type: Date, default: Date.now, index: true },
   updated_at: { type: Date, default: Date.now },
+  referencesList: {},
 })
 
 ArticleSchema.pre('save', function (next) {
