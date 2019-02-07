@@ -20,8 +20,8 @@ const lang = args[0];
 const CONVERT_QUEUE = `CONVERT_ARTICLE_QUEUE_${lang}`;
 const UPDLOAD_CONVERTED_TO_COMMONS_QUEUE = `UPDLOAD_CONVERTED_TO_COMMONS_QUEUE_${lang}`;
 
-const DB_CONNECTION = `${process.env.DB_HOST_URL}-${lang}`;
-// const DB_CONNECTION = 'mongodb://localhost/videowiki-en'
+// const DB_CONNECTION = `${process.env.DB_HOST_URL}-${lang}`;
+const DB_CONNECTION = 'mongodb://localhost/videowiki-en'
 console.log('connecting to database ', DB_CONNECTION);
 mongoose.connect(DB_CONNECTION)
 amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
@@ -71,7 +71,7 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
               }
               const { url, ETag } = result;
               // console.log('converted at ', url)
-              VideoModel.findByIdAndUpdate(videoId, { $set: {url, ETag, status: 'converted'} }, (err, result) => {
+              VideoModel.findByIdAndUpdate(videoId, { $set: {url, ETag, status: 'converted', wrapupVideoProgress: 100} }, (err, result) => {
                 if (err) {
                   updateStatus(videoId, 'failed');                  
                   console.log(err);
@@ -107,7 +107,7 @@ function convertArticle({ article, videoId, withSubtitles }, callback) {
         }
         
         progress += (1 / article.slides.length) * 100;
-        updateProgress(videoId, progress > 10 ? progress - 10 : 0);
+        updateProgress(videoId, progress);
 
         console.log(`Progress ####### ${progress} ######`)
         return cb(null, {
@@ -157,44 +157,76 @@ function convertArticle({ article, videoId, withSubtitles }, callback) {
       })
       return callback(err);
     }
+    updateProgress(videoId, 100);    
     results = results.sort((a, b) => a.index - b.index);
     generateCreditsVideos(article.title, article.wikiSource, (err, creditsVideos) => {
       if (err) {
         console.log('error creating credits videos', err);
       }
-      generateReferencesVideos(article.title, article.wikiSource, article.referencesList, (err, referencesVideos) => {
-        if (err) {
-          console.log('error creating references videos', generateReferencesVideos);
-        }
-        let finalVideos = [];
-        if (results) {
-          finalVideos = finalVideos.concat(results);
-        }
-        // Add Share video
-        finalVideos.push({ fileName: 'cc_share.webm', });
-        if (creditsVideos && creditsVideos.length > 0) {
-          finalVideos = finalVideos.concat(creditsVideos);
-        }
-        if (referencesVideos && referencesVideos.length > 0) {
-          finalVideos = finalVideos.concat(referencesVideos);
-        }
-
-        combineVideos(finalVideos, (err, videoPath) => {
-          if (err) {
-            console.log(err);
-            VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
-            })
-            return callback(err);
-          }
-          
-          slowVideoRate(videoPath, (err, slowVideoPath) => {
-            if (err) {
-              return callback(null, videoPath);
+      generateReferencesVideos(article.title, article.wikiSource, article.referencesList,
+          (progress) => {
+            if (progress && progress !== 'null') {
+              VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: progress }}, (err, result) => {
+              })
             }
-            return callback(null, slowVideoPath);
+          },
+        
+          (err, referencesVideos) => {
+            // Considere progress done
+            VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: 100 }}, (err, result) => {
+            })
+
+            if (err) {
+              console.log('error creating references videos', generateReferencesVideos);
+            }
+            let finalVideos = [];
+            if (results) {
+              finalVideos = finalVideos.concat(results);
+            }
+            // Add Share video
+            finalVideos.push({ fileName: 'cc_share.webm', });
+            if (creditsVideos && creditsVideos.length > 0) {
+              finalVideos = finalVideos.concat(creditsVideos);
+            }
+            if (referencesVideos && referencesVideos.length > 0) {
+              finalVideos = finalVideos.concat(referencesVideos);
+            }
+
+            combineVideos(finalVideos,
+              (progress) => {
+                console.log('progress is ', progress);
+                if (progress && progress !== 'null') {
+                  VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: progress }}, (err, result) => {
+                  })
+                }
+              },
+              (err, videoPath) => {
+              if (err) {
+                console.log(err);
+                VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
+                })
+                return callback(err);
+              }
+
+              VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: 100 }}, (err, result) => {
+              })
+              slowVideoRate(videoPath,
+                (progress) => {
+                  if (progress && progress !== 'null') {
+                    VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: progress > 90 ? 90 : progress }}, (err, result) => {
+                    }) 
+                  }
+                },
+                (err, slowVideoPath) => {
+                if (err) {
+                  // If something failed at this stage, just send back the normal video
+                  // That's not slowed down
+                  return callback(null, videoPath);
+                }
+                return callback(null, slowVideoPath);
+              })
+            })
           })
-        })
-      })
 
     })
   })

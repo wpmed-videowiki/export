@@ -13,6 +13,9 @@ const VideoSchema = new Schema({
     type: Number,
     default: 0,
   },
+  textReferencesProgress: { type: Number, default: 0 },
+  combiningVideosProgress: { type: Number, default: 0 },
+  wrapupVideoProgress: { type: Number, default: 0 },
   url: String,
   ETag: String, // s3 tag id 
   error: String, 

@@ -104,6 +104,33 @@ function getRemoteFileDuration(url, callback) {
 
 }
 
+function getFilesDuration(urls, callback) {
+  const getFilesDurationFuncArray = [];
+  urls.forEach(url => {
+    function getFileDuration(cb) {
+      getRemoteFileDuration(url, (err, duration) => {
+        if (err) {
+          console.log(err);
+          return cb();
+        }
+        return cb(null, duration);
+      });
+    }
+
+    getFilesDurationFuncArray.push(getFileDuration);
+  })
+
+  async.parallelLimit(getFilesDurationFuncArray, 3, (err, results) => {
+    if (err) {
+      return callback(err);
+    }
+    if (!results || results.length === 0) return callback(null, 0);
+
+    const duration = results.reduce((acc, d) => acc + parseFloat(d), 0);
+    return callback(null, duration);
+  })
+}
+
 function getRemoteFile(url, callback) {
   const filePath = './tmp/file-' + parseInt(Date.now() + Math.random() * 1000000) + "." + url.split('.').pop();
   request
@@ -293,25 +320,28 @@ function getCreditsImages(title, wikiSource, callback = () => {}) {
   })
 }
 
-function generateReferencesVideos(title, wikiSource, references, callback) {
+function generateReferencesVideos(title, wikiSource, references, onProgress, callback) {
   getReferencesImage(title, wikiSource, references, (err, images) => {
     if (err) return callback(err);
     if (!images || images.length === 0) return callback(null, []);
 
     const refFuncArray = [];
+    let doneCount = 0;
     images.forEach((image, index) => {
       function refVid(cb) {
         const videoName = `videos/refvid-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
         exec(`ffmpeg -loop 1 -i ${image.image} -c:v libvpx-vp9 -t 2 -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t 2 -pix_fmt yuv420p  -filter_complex "[0:v]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2" ${videoName}`, (err, stdout, stderr) => {
           console.log(err, stdout, stderr);
-          fs.unlink(image.image, () => {})
+          fs.unlink(image.image, () => {});
+          doneCount ++;
+          onProgress(doneCount / images.length * 100);
           cb(null, { fileName: videoName, index, silent: true });
         })
       }
       refFuncArray.push(refVid);
     })
 
-    async.series(refFuncArray, (err, result) => {
+    async.parallelLimit(refFuncArray, 2, (err, result) => {
       console.log(err, result);
       if (err) {
         return callback(err);
@@ -368,6 +398,7 @@ module.exports = {
   generateSubtitle,
   uploadVideoToS3,
   getRemoteFile,
+  getFilesDuration,
   getRemoteFileDuration,
   getVideoDimentions,
   getVideoFramerate,
@@ -375,7 +406,7 @@ module.exports = {
   getReferencesImage,
   getOriginalCommonsUrl,
   generateReferencesVideos,
-  generateCreditsVideos
+  generateCreditsVideos,
 }
 
 // // console.log(wikijs)
