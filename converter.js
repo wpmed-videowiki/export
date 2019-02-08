@@ -99,7 +99,7 @@ module.exports = {
     })
   },
 
-  combineVideos(videos, onProgress, callback) {
+  combineVideos(videos, { onProgress, onEnd }) {
     const listName = parseInt(Date.now() + Math.random() * 100000);
     const videoPath = `videos/${listName}.webm`;
     fs.writeFile(`./${listName}.txt`, videos.map((video, index) => `file '${video.fileName}'`).join('\n'), (err, content) => {
@@ -107,7 +107,7 @@ module.exports = {
         videos.forEach(video => {
           // fs.unlink(video.fileName, () => {});
         })
-        return callback(err)
+        return onEnd(err)
       }
 
       const fileNames = `-i ${videos.map(item => item.fileName).join(' -i ')}`;
@@ -122,9 +122,9 @@ module.exports = {
         -filter_complex "${filterComplex}concat=n=${videos.length}:v=1:a=1[outv][outa]" \
         -map "[outv]" -map "[outa]" ${videoPath}`, (err, stdout, stderr) => {
           if (err) {
-            callback(err);
+            onEnd(err);
           } else {
-            callback(null, `${videoPath}`);
+            onEnd(null, `${videoPath}`);
           }
           // clean up
           fs.unlink(`./${listName}.txt`, () => {});
@@ -139,7 +139,7 @@ module.exports = {
     });
   },
 
-  slowVideoRate(videoPath, onProgress, callback) {
+  slowVideoRate(videoPath, { onProgress, onEnd }) {
     const slowVideoPath = `final/${ parseInt(Date.now() + Math.random() * 100000)}-slow.webm`;
     getRemoteFileDuration(videoPath, (err, totalDuration) => {
       if (err) {
@@ -150,9 +150,9 @@ module.exports = {
       exec(`ffmpeg -i ${videoPath} -filter_complex "[0:v]setpts=1.1*PTS[v];[0:a]atempo=0.9[a]" -map "[v]" -map "[a]" ${slowVideoPath}`, (err, stdout, stderr) => {
         if (err) {
           console.log('erro slowing down video', err, stderr);
-          return callback(err);
+          return onEnd(err);
         }
-        return callback(null, slowVideoPath);
+        return onEnd(null, slowVideoPath);
       })
       .stderr.on('data', c => {
         getProgressFromStdout(totalDuration, c, onProgress);
@@ -171,7 +171,6 @@ function getProgressFromStdout(totalDuration, chunk, onProgress) {
     const minutes = parseInt(match[2]);
     const seconds = parseInt(match[3]);
     const total = seconds + minutes * 60 + hours * 60 * 60;
-    console.log(match, total, totalDuration)
     onProgress(Math.floor(total / totalDuration * 100));
   }
 }

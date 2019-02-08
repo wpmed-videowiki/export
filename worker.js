@@ -20,8 +20,8 @@ const lang = args[0];
 const CONVERT_QUEUE = `CONVERT_ARTICLE_QUEUE_${lang}`;
 const UPDLOAD_CONVERTED_TO_COMMONS_QUEUE = `UPDLOAD_CONVERTED_TO_COMMONS_QUEUE_${lang}`;
 
-// const DB_CONNECTION = `${process.env.DB_HOST_URL}-${lang}`;
-const DB_CONNECTION = 'mongodb://localhost/videowiki-en'
+const DB_CONNECTION = `${process.env.DB_HOST_URL}-${lang}`;
+// const DB_CONNECTION = 'mongodb://localhost/videowiki-en'
 console.log('connecting to database ', DB_CONNECTION);
 mongoose.connect(DB_CONNECTION)
 amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
@@ -53,7 +53,7 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
             console.log('error fetching article ', err);
             return convertChannel.ack(msg);
           }
-          console.log('convertin article ', article.title)
+          console.log('converting article ', article.title)
 
           // Update status
           updateStatus(videoId, 'progress');
@@ -163,15 +163,16 @@ function convertArticle({ article, videoId, withSubtitles }, callback) {
       if (err) {
         console.log('error creating credits videos', err);
       }
-      generateReferencesVideos(article.title, article.wikiSource, article.referencesList,
-          (progress) => {
+
+      generateReferencesVideos(article.title, article.wikiSource, article.referencesList,{
+          onProgress: (progress) => {
             if (progress && progress !== 'null') {
               VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: progress }}, (err, result) => {
               })
             }
           },
         
-          (err, referencesVideos) => {
+          onEnd: (err, referencesVideos) => {
             // Considere progress done
             VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: 100 }}, (err, result) => {
             })
@@ -192,42 +193,45 @@ function convertArticle({ article, videoId, withSubtitles }, callback) {
               finalVideos = finalVideos.concat(referencesVideos);
             }
 
-            combineVideos(finalVideos,
-              (progress) => {
-                console.log('progress is ', progress);
+            combineVideos(finalVideos,{
+              onProgress: (progress) => {
                 if (progress && progress !== 'null') {
                   VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: progress }}, (err, result) => {
                   })
                 }
               },
-              (err, videoPath) => {
-              if (err) {
-                console.log(err);
-                VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
-                })
-                return callback(err);
-              }
-
-              VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: 100 }}, (err, result) => {
-              })
-              slowVideoRate(videoPath,
-                (progress) => {
-                  if (progress && progress !== 'null') {
-                    VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: progress > 90 ? 90 : progress }}, (err, result) => {
-                    }) 
-                  }
-                },
-                (err, slowVideoPath) => {
+              
+              onEnd: (err, videoPath) => {
                 if (err) {
-                  // If something failed at this stage, just send back the normal video
-                  // That's not slowed down
-                  return callback(null, videoPath);
+                  console.log(err);
+                  VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
+                  })
+                  return callback(err);
                 }
-                return callback(null, slowVideoPath);
-              })
-            })
-          })
 
+                VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: 100 }}, (err, result) => {
+                })
+
+                slowVideoRate(videoPath,{
+                  onProgress: (progress) => {
+                      if (progress && progress !== 'null') {
+                        VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: progress > 90 ? 90 : progress }}, (err, result) => {
+                        }) 
+                      }
+                    },
+                  onEnd: (err, slowVideoPath) => {
+                    if (err) {
+                      // If something failed at this stage, just send back the normal video
+                      // That's not slowed down
+                      return callback(null, videoPath);
+                    }
+                    return callback(null, slowVideoPath);
+                  }
+              })
+            }
+          })
+        }
+      })
     })
   })
 }

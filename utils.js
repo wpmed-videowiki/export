@@ -320,10 +320,10 @@ function getCreditsImages(title, wikiSource, callback = () => {}) {
   })
 }
 
-function generateReferencesVideos(title, wikiSource, references, onProgress, callback) {
+function generateReferencesVideos(title, wikiSource, references, { onProgress, onEnd }) {
   getReferencesImage(title, wikiSource, references, (err, images) => {
-    if (err) return callback(err);
-    if (!images || images.length === 0) return callback(null, []);
+    if (err) return onEnd(err);
+    if (!images || images.length === 0) return onEnd(null, []);
 
     const refFuncArray = [];
     let doneCount = 0;
@@ -344,9 +344,9 @@ function generateReferencesVideos(title, wikiSource, references, onProgress, cal
     async.parallelLimit(refFuncArray, 2, (err, result) => {
       console.log(err, result);
       if (err) {
-        return callback(err);
+        return onEnd(err);
       }
-      return callback(null, result);
+      return onEnd(null, result);
     })
   })
 }
