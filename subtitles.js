@@ -1,9 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 const utils = require('./utils');
+const FONT_SIZE = 28;
 
 function generateSubtitle(text, audio, callback) {
-  const subtitleText = text.replace(/\[([0-9]+)\]/g, '{\\c&HFF2E00&}[$1]{\\c&HFFFFFF&}');
+  // Change color and font size of the references numbers
+  const subtitleText = text.replace(/\[([0-9]+)\]/g, `{\\fs20}{\\c&HFF2E00&}[$1]{\\c&HFFFFFF&}{\\${FONT_SIZE}}`);
 
   utils.getRemoteFileDuration(audio, (err, duration) => {
 
@@ -26,7 +28,7 @@ PlayResY: 720
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, AngleBorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Roboto,28,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,10,1
+Style: Default,Sans,${FONT_SIZE},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,10,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
