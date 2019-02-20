@@ -67,7 +67,7 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
               if (err) {
                 console.log('error uploading file', err);
                 updateStatus(videoId, 'failed');                
-                return convertChannel.ack();
+                return convertChannel.ack(msg);
               }
               const { url, ETag } = result;
               // console.log('converted at ', url)
