@@ -298,7 +298,7 @@ function getCreditsImages(title, wikiSource, callback = () => {}) {
       const contributorsChunks = lodash.chunk(contributors, 16);
       contributorsChunks.forEach((chunk, index) => {
         function renderContrib(cb) {
-          ejs.renderFile(path.join(__dirname, 'templates', 'users_credits.ejs'), { usersChunk: lodash.chunk(chunk, 8), start }, {escape: (item) => item }, (err, html) => {
+          ejs.renderFile(path.join(__dirname, 'templates', 'users_credits.ejs'), { usersChunk: lodash.chunk(chunk, 8), start, usersRef: `${wikiSource}/wiki/${title}` }, {escape: (item) => item }, (err, html) => {
             const imageName = path.join(__dirname, 'tmp' , `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
             webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'all', height: 'all'},  windowSize: { width: 1311
               , height: 620 } }, function(err) {
