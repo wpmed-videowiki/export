@@ -7,6 +7,7 @@ const VideoSchema = new Schema({
   title: { type: String, required: true },
   wikiSource: { type: String, required: true },
   user: String,
+  extraUsers: [String],
   version: String,
   status: { type: String, enum: ['queued', 'progress', 'converted', 'uploaded', 'failed'], default: 'queued' },
   conversionProgress: {

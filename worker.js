@@ -57,7 +57,7 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
 
           // Update status
           updateStatus(videoId, 'progress');
-          convertArticle({ article, videoId, withSubtitles: video.withSubtitles }, (err, videoPath) => {
+          convertArticle({ article, video, videoId, withSubtitles: video.withSubtitles }, (err, videoPath) => {
             if (err) {
               updateStatus(videoId, 'failed');
               console.log(err);
@@ -93,7 +93,7 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
 
 
 
-function convertArticle({ article, videoId, withSubtitles }, callback) {
+function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   const convertFuncArray = [];
   let progress = 0;
   article.slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
@@ -159,7 +159,7 @@ function convertArticle({ article, videoId, withSubtitles }, callback) {
     }
     updateProgress(videoId, 100);    
     results = results.sort((a, b) => a.index - b.index);
-    generateCreditsVideos(article.title, article.wikiSource, (err, creditsVideos) => {
+    generateCreditsVideos(article.title, article.wikiSource, video.extraUsers, (err, creditsVideos) => {
       if (err) {
         console.log('error creating credits videos', err);
       }

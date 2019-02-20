@@ -276,7 +276,7 @@ function getReferencesImage(title, wikiSource, references, callback) {
   })
 }
 
-function getCreditsImages(title, wikiSource, callback = () => {}) {
+function getCreditsImages(title, wikiSource, extraUsers = [], callback = () => {}) {
   // console.log(`${wikiSource}/w/api.php?action=query&format=json&prop=contributors&titles=${title}&redirects`)
   request.get(`${wikiSource}/w/api.php?action=query&format=json&prop=contributors&titles=${title}&redirects`, (err, data) => {
     if (err) {
@@ -292,7 +292,7 @@ function getCreditsImages(title, wikiSource, callback = () => {}) {
 
       if (contributors.length == 0) return callback(null, []);
       contributors = contributors.map((con) => con.name);
-
+      contributors = contributors.concat(extraUsers)
       let renderContribFuncArray = [];
       let start = 1;
       const contributorsChunks = lodash.chunk(contributors, 16);
@@ -352,8 +352,8 @@ function generateReferencesVideos(title, wikiSource, references, { onProgress, o
 }
 
 
-function generateCreditsVideos(title, wikiSource, callback) {
-  getCreditsImages(title, wikiSource, (err, images) => {
+function generateCreditsVideos(title, wikiSource, extraUsers, callback) {
+  getCreditsImages(title, wikiSource, extraUsers, (err, images) => {
     if (err) return callback(err);
     if (!images || images.length === 0) return callback(null, []);
 
