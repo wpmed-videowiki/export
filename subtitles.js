@@ -5,7 +5,7 @@ const FONT_SIZE = 28;
 
 function generateSubtitle(text, audio, callback) {
   // Change color and font size of the references numbers
-  const subtitleText = text.replace(/\[([0-9]+)\]/g, `{\\fs20}{\\c&HFF2E00&}[$1]{\\c&HFFFFFF&}{\\${FONT_SIZE}}`);
+  const subtitleText = text.replace(/\[([0-9]+)\]/g, `{\\fs18}{\\c&HFF2E00&}[$1]{\\c&HFFFFFF&}{\\fs${FONT_SIZE}}`);
 
   utils.getRemoteFileDuration(audio, (err, duration) => {
 
