@@ -245,8 +245,8 @@ function getReferencesImage(title, wikiSource, references, callback) {
           link.attr('href', `${wikiSource}${link.attr('href')}`);
         }
       }
-      // Dont include self referencing links
-      if (link.attr('href').indexOf(`${wikiSource}/wiki/${title}`) === -1) {
+      // Dont include self referencing links within Wikimedia
+      if (link.attr('href').indexOf(`/wiki/`) === -1) {
         item.links.push(link.attr('href'));
       }
     })
