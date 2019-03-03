@@ -185,7 +185,6 @@ function getMediaInfo(url, callback) {
       return callback(new Error(`Invalid url ${url}`), null);
     }, 100);
   } else {
-
     wikijs({
       apiUrl: 'https://commons.wikimedia.org/w/api.php',
       origin: null
@@ -256,14 +255,17 @@ function getReferencesImage(title, wikiSource, references, callback) {
   let renderRefsFuncArray = []
   refChunks.forEach((chunk, index) => {
     function renderRefs(cb) {
-      ejs.renderFile(path.join(__dirname, 'templates', 'references.ejs'), { references: chunk, start }, {escape: (item) => item }, (err, html) => {
-        if (err) return cb(err);
-        const imageName = path.join(__dirname, 'tmp' , `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
-        webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'window', height: 'all'} }, function(err) {
+      ejs.renderFile(path.join(__dirname, 'templates', 'references.ejs'),
+        { references: chunk, start }, 
+        { escape: (item) => item }, 
+        (err, html) => {
           if (err) return cb(err);
-          start += chunk.length;
-          cb(null, { image: imageName, index })
-        });
+          const imageName = path.join(__dirname, 'tmp' , `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
+          webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'window', height: 'all'} }, function(err) {
+            if (err) return cb(err);
+            start += chunk.length;
+            cb(null, { image: imageName, index })
+          });
       });
     }
     renderRefsFuncArray.push(renderRefs);
@@ -289,22 +291,27 @@ function getCreditsImages(title, wikiSource, extraUsers = [], callback = () => {
       Object.keys(body.query.pages).forEach(pageId => {
         contributors = contributors.concat(body.query.pages[pageId].contributors);
       })
-
-      if (contributors.length == 0) return callback(null, []);
+      
       contributors = contributors.map((con) => con.name);
       contributors = contributors.concat(extraUsers)
+
+      if (contributors.length == 0) return callback(null, []);
+      
       let renderContribFuncArray = [];
       let start = 1;
       const contributorsChunks = lodash.chunk(contributors, 16);
       contributorsChunks.forEach((chunk, index) => {
         function renderContrib(cb) {
-          ejs.renderFile(path.join(__dirname, 'templates', 'users_credits.ejs'), { usersChunk: lodash.chunk(chunk, 8), start, usersRef: `${wikiSource}/wiki/${title}` }, {escape: (item) => item }, (err, html) => {
-            const imageName = path.join(__dirname, 'tmp' , `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
-            webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'all', height: 'all'},  windowSize: { width: 1311
-              , height: 620 } }, function(err) {
-              start += chunk.length;
-              cb(null, { image: imageName, index })
-            });
+          ejs.renderFile(path.join(__dirname, 'templates', 'users_credits.ejs'),
+            { usersChunk: lodash.chunk(chunk, 8), start, usersRef: `${wikiSource}/wiki/${title}` }, 
+            { escape: (item) => item },
+            (err, html) => {
+              const imageName = path.join(__dirname, 'tmp' , `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
+              webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'all', height: 'all'},  windowSize: { width: 1311
+                , height: 620 } }, function(err) {
+                start += chunk.length;
+                cb(null, { image: imageName, index })
+              });
           });
         }
         renderContribFuncArray.push(renderContrib);

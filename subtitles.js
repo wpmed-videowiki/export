@@ -1,7 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const utils = require('./utils');
-const FONT_SIZE = 28;
+const async = require('async');
+const cheerio = require('cheerio');
+const FONT_SIZE = 20;
+const REFS_FONT_SIZE = 16; 
 
 function generateSubtitle(text, audio, callback) {
   // Change color and font size of the references numbers
@@ -45,6 +48,75 @@ Dialogue: 0,0:00:00.00,0:00:${duration},Default,,0,0,0,,${subtitleText}
     })
   })
 }
+
+function formatDurationPart(num) {
+  if (num < 10) return `0${num}`;
+  return `${num}`;
+}
+
+function formatDuration(totalSeconds) {
+  const hours = parseInt(totalSeconds/3600);
+  const minutes = parseInt((totalSeconds / 60) % 60);
+  const seconds = (parseFloat(totalSeconds % 60).toFixed(3)).toString().replace('.', ',');
+
+  return `${formatDurationPart(hours)}:${formatDurationPart(minutes)}:${formatDurationPart(seconds)}`;
+
+}
+
+function generateSrtSubtitles(slides, multiplyFactor, callback) {
+  const slidesSlice = slides.slice();
+  const slidesFuncArray = [];
+  slidesSlice.forEach(slide => {
+    function audioLength(cb) {
+      utils.getRemoteFileDuration(`https:${slide.audio}`, (err, duration) => {
+        if (err) return cb(err);
+        slide.duration = duration;
+        return cb();
+      })
+    }
+    slidesFuncArray.push(audioLength);
+  });
+
+  async.parallelLimit(slidesFuncArray, 5, (err, result) => {
+    if (err) return callback(err);
+    
+    const subList = [];
+    slidesSlice.forEach((slide, index) => {
+      let start;
+      let end;
+
+      if (index === 0) {
+        start = formatDuration(0);
+        end = formatDuration((slide.duration * multiplyFactor));
+      } else {
+        const prevSlidesDurations = slidesSlice.slice(0, index).map(s => s.duration).reduce((acc, d) => acc + d, 0);
+        start = formatDuration((prevSlidesDurations * multiplyFactor));
+        end = formatDuration(((prevSlidesDurations + slide.duration) * multiplyFactor));
+      }
+      const $ = cheerio.load(`<div>${slide.text}</div>`);
+      slide.text = $.text();
+      slide.text = slide.text.replace(/\[([0-9]+)\]/g, `<font color="#00008b" size="1"><b>[$1]</b></font>`);
+      
+      subList.push({
+        index,
+        text: `${index + 1}\n${start} --> ${end}\n<font>${slide.text}</font>`
+      });
+
+    })
+
+    const subname = '/home/hassan/Desktop/subtitle.srt'
+    fs.writeFileSync(subname, subList.map(sub => sub.text).join('\n\n'));
+    return callback(null, subname);
+  })
+}
+
+const acute_vision_loss = require('./acute_vision_loss.json');
+
+generateSrtSubtitles(acute_vision_loss.slidesHtml, 1.1, (err, result) => {
+  console.log(err, result);
+})
+
+
 
 module.exports = {
   generateSubtitle,
