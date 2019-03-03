@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const cheerio = require('cheerio');
 
 const { imageToVideo, videoToVideo, gifToVideo ,combineVideos, slowVideoRate }  = require('./converter');
-const { getFileType, getRemoteFileDuration, uploadVideoToS3, generateSubtitle, getMediaInfo, generateReferencesVideos, generateCreditsVideos } = require('./utils');
+const utils = require('./utils');
 const { DEFAUL_IMAGE_URL } = require('./constants');
 
 const ArticleModel = require('./models/Article');
@@ -34,7 +34,7 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
 
     convertChannel.consume(CONVERT_QUEUE, msg => {
       const { videoId } = JSON.parse(msg.content.toString());
-
+      
       VideoModel.findById(videoId, (err, video) => {
         if (err) {
           updateStatus(videoId, 'failed');
@@ -63,7 +63,7 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
               console.log(err);
               return convertChannel.ack(msg);
             }
-            uploadVideoToS3(videoPath, (err, result) => {
+            utils.uploadVideoToS3(videoPath, (err, result) => {
               if (err) {
                 console.log('error uploading file', err);
                 updateStatus(videoId, 'failed');                
@@ -96,89 +96,116 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
 function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   const convertFuncArray = [];
   let progress = 0;
-  article.slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
-    function convert(cb) {
-      const fileName = `videos/${slide.audio.split('/').pop().replace('.mp3', '.webm')}`
-      const audioUrl = 'https:' + slide.audio;
-      const convertCallback = (err, result) => {
-        if (err) {
-          console.log('error in async ', err);
-          return cb(err);
-        }
-        
-        progress += (1 / article.slides.length) * 100;
-        updateProgress(videoId, progress);
+  const slidesHtml = article.slidesHtml.slice();
+  const verifySlidesMediaFuncArray = [];
 
-        console.log(`Progress ####### ${progress} ######`)
-        return cb(null, {
-          fileName,
-          index
-        });
-      }
-
-
+  slidesHtml.forEach(slide => {
+    function verifyMedia(cb) {
       if (!slide.media) {
         slide.media = DEFAUL_IMAGE_URL;
         slide.mediaType = 'image';
+        return cb();
       }
-      getMediaInfo(slide.media, (err, info) => {
-        let subtitle = '';
-        if (err) {
-          console.log('error fetching media author and licence', err)
-        } else {
-          if (info.author) {
-            subtitle = `Visual Content by ${info.author}, `
-          }
-          if (info.licence) {
-            subtitle += info.licence
-          }
+
+      utils.checkMediaFileExists(slide.media, (err, valid) => {
+        if (err || !valid) {
+          slide.media = DEFAUL_IMAGE_URL;
+          slide.mediaType = 'image';
         }
-        const $ = cheerio.load(`<div>${slide.text}</div>`);
-        const slideText = $.text();
-        
-        if (getFileType(slide.media) === 'image') {
-          imageToVideo(slide.media, audioUrl, slideText, subtitle, withSubtitles, fileName, convertCallback);
-        } else if (getFileType(slide.media) === 'video') {
-          videoToVideo(slide.media, audioUrl, slideText, subtitle, withSubtitles, fileName, convertCallback);
-        } else if (getFileType(slide.media) === 'gif') {
-          gifToVideo(slide.media, audioUrl, slideText, subtitle, withSubtitles, fileName, convertCallback);
-        } else {
-          return cb(new Error('Invalid file type'));
-        }
+        return cb();
       })
     }
-
-    convertFuncArray.push(convert);
+    verifySlidesMediaFuncArray.push(verifyMedia);
   })
 
-  async.parallelLimit(convertFuncArray, 2, (err, results) => {
+  async.parallelLimit(async.reflectAll(verifySlidesMediaFuncArray), 10, (err, result) => {
     if (err) {
-      VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
-      })
-      return callback(err);
+      console.log('error verifying slides media');
     }
-    updateProgress(videoId, 100);    
-    results = results.sort((a, b) => a.index - b.index);
-    generateCreditsVideos(article.title, article.wikiSource, video.extraUsers, (err, creditsVideos) => {
-      if (err) {
-        console.log('error creating credits videos', err);
-      }
+    
+    slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
+      function convert(cb) {
+        const fileName = `videos/${slide.audio.split('/').pop().replace('.mp3', '.webm')}`
+        const audioUrl = 'https:' + slide.audio;
+        const convertCallback = (err, result) => {
+          if (err) {
+            console.log('error in async ', err);
+            return cb(err);
+          }
+          
+          progress += (1 / article.slides.length) * 100;
+          updateProgress(videoId, progress);
+          
+          console.log(`Progress ####### ${progress} ######`)
+          return cb(null, {
+            fileName,
+            index
+          });
+        }
+        
+        if (!slide.media) {
+          slide.media = DEFAUL_IMAGE_URL;
+          slide.mediaType = 'image';
+        }
 
-      generateReferencesVideos(article.title, article.wikiSource, article.referencesList,{
+        utils.getMediaInfo(slide.media, (err, info) => {
+          let subtitle = '';
+          if (err) {
+            console.log('error fetching media author and licence', err)
+          } else {
+            if (info.author) {
+              subtitle = `Visual Content by ${info.author}, `
+            }
+            if (info.licence) {
+              subtitle += info.licence
+            }
+          }
+          const $ = cheerio.load(`<div>${slide.text}</div>`);
+          const slideText = $.text();
+          
+          if (utils.getFileType(slide.media) === 'image') {
+            imageToVideo(slide.media, audioUrl, slideText, subtitle, withSubtitles, fileName, convertCallback);
+          } else if (utils.getFileType(slide.media) === 'video') {
+            videoToVideo(slide.media, audioUrl, slideText, subtitle, withSubtitles, fileName, convertCallback);
+          } else if (utils.getFileType(slide.media) === 'gif') {
+            gifToVideo(slide.media, audioUrl, slideText, subtitle, withSubtitles, fileName, convertCallback);
+          } else {
+            return cb(new Error('Invalid file type'));
+          }
+        })
+      }
+      
+      convertFuncArray.push(convert);
+    })
+    
+    async.parallelLimit(convertFuncArray, 1, (err, results) => {
+      if (err) {
+        VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
+        })
+        return callback(err);
+      }
+      updateProgress(videoId, 100);    
+      results = results.sort((a, b) => a.index - b.index);
+      utils.generateCreditsVideos(article.title, article.wikiSource, video.extraUsers, (err, creditsVideos) => {
+        if (err) {
+          console.log('error creating credits videos', err);
+        }
+        
+        utils.generateReferencesVideos(article.title, article.wikiSource, article.referencesList,{
           onProgress: (progress) => {
             if (progress && progress !== 'null') {
               VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: progress }}, (err, result) => {
               })
             }
           },
-        
+          
           onEnd: (err, referencesVideos) => {
             // Considere progress done
             VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: 100 }}, (err, result) => {
             })
-
+            
             if (err) {
-              console.log('error creating references videos', generateReferencesVideos);
+              console.log('error creating references videos', err);
             }
             let finalVideos = [];
             if (results) {
@@ -192,7 +219,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             if (referencesVideos && referencesVideos.length > 0) {
               finalVideos = finalVideos.concat(referencesVideos);
             }
-
+            
             combineVideos(finalVideos,{
               onProgress: (progress) => {
                 if (progress && progress !== 'null') {
@@ -208,13 +235,13 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                   })
                   return callback(err);
                 }
-
+                
                 VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: 100 }}, (err, result) => {
                 })
-
+                
                 slowVideoRate(videoPath,{
                   onProgress: (progress) => {
-                      if (progress && progress !== 'null') {
+                    if (progress && progress !== 'null') {
                         VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: progress > 90 ? 90 : progress }}, (err, result) => {
                         }) 
                       }
@@ -227,10 +254,11 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                     }
                     return callback(null, slowVideoPath);
                   }
-              })
-            }
-          })
-        }
+                })
+              }
+            })
+          }
+        })
       })
     })
   })
@@ -275,7 +303,7 @@ ArticleModel.count({}, (err, count) => {
 //   console.log(err, filePath)
 // })
 
-// generateSubtitle('Despite its invisible interior, the presence of a black hole can be inferred through its interaction with other matter and with electromagnetic radiation such as visible light', 'https://dnv8xrxt73v5u.cloudfront.net/58626ba7-4423-465d-b410-62fabd501472.mp3', () => {
+// utils.generateSubtitle('Despite its invisible interior, the presence of a black hole can be inferred through its interaction with other matter and with electromagnetic radiation such as visible light', 'https://dnv8xrxt73v5u.cloudfront.net/58626ba7-4423-465d-b410-62fabd501472.mp3', () => {
 
 // })
 
@@ -290,7 +318,7 @@ ArticleModel.count({}, (err, count) => {
 
 
 // ArticleModel.findOne({title: 'Elon_Musk', published: true}, (err, article) => {
-//   // generateCreditsVideos(article.title, article.wikiSource, (err, result) => {
+//   // utils.generateCreditsVideos(article.title, article.wikiSource, (err, result) => {
 //   //   console.log(err, result);
 //   // });
   

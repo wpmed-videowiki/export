@@ -380,6 +380,16 @@ function generateCreditsVideos(title, wikiSource, extraUsers, callback) {
   })
 }
 
+function checkMediaFileExists(fileUrl, callback = () => {}) {
+  request.get(fileUrl, (err, res) => {
+    console.log(err,)
+    if (err) return callback(err);
+    if (res && res.statusCode !== 200) return callback(new Error('Invalid file'));
+    return callback(null, true);
+  })
+}
+
+
 // function generateShareVideo(callback) {
 //   const videoName = `videos/refvid-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
 //   exec(`ffmpeg -loop 1 -i cc_video_share.png -c:v libvpx-vp9 -t 2 -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t 2 -pix_fmt yuv420p  -filter_complex "[0:v]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2" ${videoName}`, (err, stdout, stderr) => {
@@ -407,6 +417,7 @@ module.exports = {
   getOriginalCommonsUrl,
   generateReferencesVideos,
   generateCreditsVideos,
+  checkMediaFileExists,
 }
 
 // // console.log(wikijs)
