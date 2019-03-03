@@ -213,7 +213,7 @@ function getMediaInfo(url, callback) {
           author = authorWrapper.text();
         }
         if (author) {
-          author = author.trim().replace('User:', '');
+          author = author.trim().replace('User:', '').replace(/\:/g, '');
         }
 
         return callback(null, { author, licence });
