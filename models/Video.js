@@ -21,6 +21,9 @@ const VideoSchema = new Schema({
   ETag: String, // s3 tag id 
   error: String, 
   withSubtitles: { type: Boolean, default: false },
+  commonsSubtitles: { type: String },
+  vlcSubtitles: { type: String },
+  vttSubtitles: { type: String },
   created_at: { type: Date, default: Date.now, index: true },
   updated_at: { type: Date, default: Date.now },
 })

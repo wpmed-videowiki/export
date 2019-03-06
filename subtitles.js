@@ -3,6 +3,7 @@ const path = require('path');
 const utils = require('./utils');
 const async = require('async');
 const cheerio = require('cheerio');
+var srt2vtt = require('srt-to-vtt')
 const FONT_SIZE = 20;
 const REFS_FONT_SIZE = 16; 
 
@@ -50,7 +51,7 @@ Dialogue: 0,0:00:00.00,0:00:${duration},Default,,0,0,0,,${subtitleText}
 }
 
 function formatDurationPart(num) {
-  if (num < 10) return `0${num}`;
+  if (parseInt(num) < 10) return `0${num}`;
   return `${num}`;
 }
 
@@ -63,12 +64,14 @@ function formatDuration(totalSeconds) {
 
 }
 
-function generateSrtSubtitles(slides, multiplyFactor, callback) {
+function generateSrtSubtitles(slides, multiplyFactor, callback = () => {}) {
   const slidesSlice = slides.slice();
   const slidesFuncArray = [];
+  // First we get the duration of each video file in the slide
+  // Then write the subtitles times accordingly
   slidesSlice.forEach(slide => {
     function audioLength(cb) {
-      utils.getRemoteFileDuration(`https:${slide.audio}`, (err, duration) => {
+      utils.getRemoteFileDuration(slide.video, (err, duration) => {
         if (err) return cb(err);
         slide.duration = duration;
         return cb();
@@ -94,32 +97,40 @@ function generateSrtSubtitles(slides, multiplyFactor, callback) {
         end = formatDuration(((prevSlidesDurations + slide.duration) * multiplyFactor));
       }
       const $ = cheerio.load(`<div>${slide.text}</div>`);
-      slide.text = $.text();
-      slide.text = slide.text.replace(/\[([0-9]+)\]/g, `<font color="#00008b" size="1"><b>[$1]</b></font>`);
-      
+      let slideText = $.text();
+
       subList.push({
         index,
-        text: `${index + 1}\n${start} --> ${end}\n<font>${slide.text}</font>`
+        commonsText: `${index + 1}\n${start} --> ${end}\n<font>${slideText}</font>`,
+        vlcText: `${index + 1}\n${start} --> ${end}\n<font size="20">${slideText}</font>`,
+        vttText: `${index + 1}\n${start.replace(/\,/g, '.')} --> ${end.replace(/\,/g, '.')}\n<font>${slideText}</font>`,
       });
 
     })
 
-    const subname = '/home/hassan/Desktop/subtitle.srt'
-    fs.writeFileSync(subname, subList.map(sub => sub.text).join('\n\n'));
-    return callback(null, subname);
+    const commonsSubtitlesFilePath = path.join(__dirname, 'tmp', `subtitles-commons-${Date.now()}.srt`);
+    const vlcSubtitlesFilePath = path.join(__dirname, 'tmp', `subtitles-vlc-${Date.now()}.srt`);
+    const vttSubtitlesFilePath = path.join(__dirname, 'tmp', `subtitles-vtt-${Date.now()}.vtt`)
+    
+    const commonsSubtitles = subList.map(sub => sub.commonsText.replace(/\[([0-9]+)\]/g, `<font size="1"><b>[$1]</b></font>`));
+    const vlcSubtitles = subList.map(sub => sub.vlcText.replace(/\[([0-9]+)\]/g, `<font size="16"><b>[$1]</b></font>`));
+    const vttSubtitles = subList.map(sub => sub.vttText.replace(/\[([0-9]+)\]/g, `<font><b>[$1]</b></font>`))
+
+    fs.writeFileSync(commonsSubtitlesFilePath, commonsSubtitles.join('\n\n'));
+    fs.writeFileSync(vlcSubtitlesFilePath, vlcSubtitles.join('\n\n'));
+    fs.writeFileSync(vttSubtitlesFilePath, `WEBVTT\n\n${vttSubtitles.join('\n\n')}`);
+
+    // Convert srt to vtt for display on history page
+    
+    return callback(null, { commonsSubtitles: commonsSubtitlesFilePath, vlcSubtitles: vlcSubtitlesFilePath, vttSubtitles: vttSubtitlesFilePath });
   })
 }
 
 const acute_vision_loss = require('./acute_vision_loss.json');
 
-generateSrtSubtitles(acute_vision_loss.slidesHtml, 1.1, (err, result) => {
-  console.log(err, result);
-})
-
-
-
 module.exports = {
   generateSubtitle,
+  generateSrtSubtitles
 }
 
 // generateSubtitle('Retinal detachment should be considered if there were preceding flashes or floaters, or if there is a new visual field defect in one eye.[3][4] If treated early enough, retinal tear and detachment can have a good outcome.[3]', 'https://dnv8xrxt73v5u.cloudfront.net/549754ec-5e55-472f-8715-47120efc4567.mp3', (err, filepath) => {

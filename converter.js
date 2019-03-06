@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const { exec } = require('child_process');
 const { getRemoteFile, getRemoteFileDuration, getFilesDuration, getVideoFramerate, getVideoDimentions } = require('./utils')
 const { generateSubtitle } = require('./subtitles');
@@ -139,8 +140,8 @@ module.exports = {
     });
   },
 
-  slowVideoRate(videoPath, { onProgress, onEnd }) {
-    const slowVideoPath = `final/${ parseInt(Date.now() + Math.random() * 100000)}-slow.webm`;
+  slowVideoRate(videoPath, { onProgress = () => {}, onEnd = () => {}}) {
+    const slowVideoPath = path.join(__dirname, 'tmp', `${ parseInt(Date.now() + Math.random() * 100000)}-slow.webm`);
     getRemoteFileDuration(videoPath, (err, totalDuration) => {
       if (err) {
         totalDuration = 0;

@@ -165,6 +165,41 @@ function uploadVideoToS3(filePath, callback) {
   })
 }
 
+function uploadSubtitlesToS3(subtitles, callback) {
+  const uploadSubtitlesFuncArray = [];
+  Object.keys(subtitles).forEach(key => {
+    function uploadSubtitle(cb) {
+      const fileName = subtitles[key].split('/').pop();
+     
+      s3.putObject({
+        Bucket: BUCKET_NAME,
+        Key: fileName,
+        Body: fs.createReadStream(subtitles[key]),
+        ContentType: 'text/plain',
+        ContentDisposition: 'attachement',
+      }, (err, res) => {
+        if (err) {
+          return cb(err);
+        }
+        const url = `https://s3-${REGION}.amazonaws.com/${BUCKET_NAME}/${fileName}`;
+        return cb(null, { [key]: url });
+      })
+    }
+    uploadSubtitlesFuncArray.push(uploadSubtitle);
+  })
+
+  async.parallel(async.reflectAll(uploadSubtitlesFuncArray), (err, result) => {
+    if (err) {
+      return callback(err);
+    }
+    const subs = result.map(item => item.value).reduce((acc, item) => {
+      acc[Object.keys(item)[0]] = item[Object.keys(item)[0]]
+      return acc;
+    }, {})
+    return callback(null, subs);
+  })
+}
+
 function generateSubtitle(text, audio, callback) {
   getRemoteFileDuration(audio, (err, duration) => {
     const subtitleName = parseInt(Date.now() + Math.random() * 100000) + '-sub.srt';
@@ -425,6 +460,7 @@ module.exports = {
   generateReferencesVideos,
   generateCreditsVideos,
   checkMediaFileExists,
+  uploadSubtitlesToS3,
 }
 
 // // console.log(wikijs)
