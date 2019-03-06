@@ -230,7 +230,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
       convertFuncArray.push(convert);
     })
     
-    async.parallelLimit(convertFuncArray, 1, (err, results) => {
+    async.parallelLimit(convertFuncArray, 2, (err, results) => {
       if (err) {
         VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
         })
