@@ -1,0 +1,23 @@
+1
+00:00:0,000 --> 00:00:11,421
+<font size="22">Acute visual loss is a rapid loss of the ability to see. Common causes include retinal detachment, glaucoma, macular degeneration, and giant cell arteritis.<font color="blue" size="16">[2]</font></font>
+
+2
+00:00:11,431 --> 00:00:24,060
+<font size="22">Retinal detachment should be considered if there were preceding flashes or floaters, or if there is a new visual field defect in one eye.<font color="blue" size="16">[3]</font><font color="blue" size="16">[4]</font> If treated early enough, retinal tear and detachment can have a good outcome.<font color="blue" size="16">[3]</font></font>
+
+3
+00:00:23,960 --> 00:00:39,749
+<font size="22">Angle-closure glaucoma should be considered if there is a painful loss of vision with a red eye, nausea or vomiting.<font color="blue" size="16">[5]</font> The eye pressure will be very high typically greater than 40 mmHg.<font color="blue" size="16">[6]</font> Emergent laser treatment to the iris may prevent blindness.<font color="blue" size="16">[5]</font></font>
+
+4
+00:00:39,649 --> 00:00:46,358
+<font size="22">Wet macular degeneration should be considered in older people with new distortion of their vision with bleeding in the macula.<font color="blue" size="16">[7]</font><font color="blue" size="16">[8]</font></font>
+
+5
+00:00:46,258 --> 00:00:51,616
+<font size="22">Vision can often be regained with prompt eye injections with anti-VEGF agents.<font color="blue" size="16">[7]</font></font>
+
+6
+00:00:51,516 --> 00:01:8,225
+<font size="22">Giant cell arteritis should be considered in an older person with jaw claudication, temporal pain, and feeling tired.<font color="blue" size="16">[9]</font> Placing the person on steroids might save both their vision and decrease their risk of stroke.<font color="blue" size="16">[10]</font> Without treatment a person can quickly go blind in both eyes.<font color="blue" size="16">[11]</font></font>

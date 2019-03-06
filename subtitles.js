@@ -1,7 +1,11 @@
 const fs = require('fs');
 const path = require('path');
 const utils = require('./utils');
-const FONT_SIZE = 28;
+const async = require('async');
+const cheerio = require('cheerio');
+var srt2vtt = require('srt-to-vtt')
+const FONT_SIZE = 20;
+const REFS_FONT_SIZE = 16; 
 
 function generateSubtitle(text, audio, callback) {
   // Change color and font size of the references numbers
@@ -46,8 +50,87 @@ Dialogue: 0,0:00:00.00,0:00:${duration},Default,,0,0,0,,${subtitleText}
   })
 }
 
+function formatDurationPart(num) {
+  if (parseInt(num) < 10) return `0${num}`;
+  return `${num}`;
+}
+
+function formatDuration(totalSeconds) {
+  const hours = parseInt(totalSeconds/3600);
+  const minutes = parseInt((totalSeconds / 60) % 60);
+  const seconds = (parseFloat(totalSeconds % 60).toFixed(3)).toString().replace('.', ',');
+
+  return `${formatDurationPart(hours)}:${formatDurationPart(minutes)}:${formatDurationPart(seconds)}`;
+
+}
+
+function generateSrtSubtitles(slides, multiplyFactor, callback = () => {}) {
+  const slidesSlice = slides.slice();
+  const slidesFuncArray = [];
+  // First we get the duration of each video file in the slide
+  // Then write the subtitles times accordingly
+  slidesSlice.forEach(slide => {
+    function audioLength(cb) {
+      utils.getRemoteFileDuration(slide.video, (err, duration) => {
+        if (err) return cb(err);
+        slide.duration = duration;
+        return cb();
+      })
+    }
+    slidesFuncArray.push(audioLength);
+  });
+
+  async.parallelLimit(slidesFuncArray, 5, (err, result) => {
+    if (err) return callback(err);
+    
+    const subList = [];
+    slidesSlice.forEach((slide, index) => {
+      let start;
+      let end;
+
+      if (index === 0) {
+        start = formatDuration(0);
+        end = formatDuration((slide.duration * multiplyFactor));
+      } else {
+        const prevSlidesDurations = slidesSlice.slice(0, index).map(s => s.duration).reduce((acc, d) => acc + d, 0);
+        start = formatDuration((prevSlidesDurations * multiplyFactor));
+        end = formatDuration(((prevSlidesDurations + slide.duration) * multiplyFactor));
+      }
+      const $ = cheerio.load(`<div>${slide.text}</div>`);
+      let slideText = $.text();
+
+      subList.push({
+        index,
+        commonsText: `${index + 1}\n${start} --> ${end}\n<font>${slideText}</font>`,
+        vlcText: `${index + 1}\n${start} --> ${end}\n<font size="20">${slideText}</font>`,
+        vttText: `${index + 1}\n${start.replace(/\,/g, '.')} --> ${end.replace(/\,/g, '.')}\n<font>${slideText}</font>`,
+      });
+
+    })
+
+    const commonsSubtitlesFilePath = path.join(__dirname, 'tmp', `subtitles-commons-${Date.now()}.srt`);
+    const vlcSubtitlesFilePath = path.join(__dirname, 'tmp', `subtitles-vlc-${Date.now()}.srt`);
+    const vttSubtitlesFilePath = path.join(__dirname, 'tmp', `subtitles-vtt-${Date.now()}.vtt`)
+    
+    const commonsSubtitles = subList.map(sub => sub.commonsText.replace(/\[([0-9]+)\]/g, `<font size="1"><b>[$1]</b></font>`));
+    const vlcSubtitles = subList.map(sub => sub.vlcText.replace(/\[([0-9]+)\]/g, `<font size="16"><b>[$1]</b></font>`));
+    const vttSubtitles = subList.map(sub => sub.vttText.replace(/\[([0-9]+)\]/g, `<font><b>[$1]</b></font>`))
+
+    fs.writeFileSync(commonsSubtitlesFilePath, commonsSubtitles.join('\n\n'));
+    fs.writeFileSync(vlcSubtitlesFilePath, vlcSubtitles.join('\n\n'));
+    fs.writeFileSync(vttSubtitlesFilePath, `WEBVTT\n\n${vttSubtitles.join('\n\n')}`);
+
+    // Convert srt to vtt for display on history page
+    
+    return callback(null, { commonsSubtitles: commonsSubtitlesFilePath, vlcSubtitles: vlcSubtitlesFilePath, vttSubtitles: vttSubtitlesFilePath });
+  })
+}
+
+const acute_vision_loss = require('./acute_vision_loss.json');
+
 module.exports = {
   generateSubtitle,
+  generateSrtSubtitles
 }
 
 // generateSubtitle('Retinal detachment should be considered if there were preceding flashes or floaters, or if there is a new visual field defect in one eye.[3][4] If treated early enough, retinal tear and detachment can have a good outcome.[3]', 'https://dnv8xrxt73v5u.cloudfront.net/549754ec-5e55-472f-8715-47120efc4567.mp3', (err, filepath) => {
