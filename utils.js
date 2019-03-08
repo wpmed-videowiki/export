@@ -200,6 +200,16 @@ function uploadSubtitlesToS3(subtitles, callback) {
   })
 }
 
+function deleteVideoFromS3(key, callback = () => {}) {
+  s3.deleteObject({
+    Key: key,
+    Bucket: BUCKET_NAME,
+  }, (err, result) => {
+    if (err) return callback(err);
+    return callback(null, result);
+  })
+}
+
 function generateSubtitle(text, audio, callback) {
   getRemoteFileDuration(audio, (err, duration) => {
     const subtitleName = parseInt(Date.now() + Math.random() * 100000) + '-sub.srt';
@@ -461,6 +471,7 @@ module.exports = {
   generateCreditsVideos,
   checkMediaFileExists,
   uploadSubtitlesToS3,
+  deleteVideoFromS3,
 }
 
 // // console.log(wikijs)

@@ -18,6 +18,7 @@ const VideoModel = require('./models/Video');
 const args = process.argv.slice(2);
 const lang = args[0];
 
+const DELETE_AWS_VIDEO = 'DELETE_AWS_VIDEO';
 const CONVERT_QUEUE = `CONVERT_ARTICLE_QUEUE_${lang}`;
 const UPDLOAD_CONVERTED_TO_COMMONS_QUEUE = `UPDLOAD_CONVERTED_TO_COMMONS_QUEUE_${lang}`;
 
@@ -32,107 +33,140 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
     console.log('connection created')
     convertChannel.assertQueue(CONVERT_QUEUE, {durable: true});
     convertChannel.assertQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, { durable: true });
+    convertChannel.assertQueue(DELETE_AWS_VIDEO, { durable: true });
 
-    convertChannel.consume(CONVERT_QUEUE, msg => {
-      const { videoId } = JSON.parse(msg.content.toString());
-      
-      VideoModel.findById(videoId, (err, video) => {
-        if (err) {
-          updateStatus(videoId, 'failed');
-          console.log('error retrieving video', err);
-          return convertChannel.ack(msg);
-        }
-        if (!video) {
-          console.log('invalid video id');
-          updateStatus(videoId, 'failed');          
-          return convertChannel.ack(msg);
-        }
-
-        ArticleModel.findOne({title: video.title, wikiSource: video.wikiSource, published: true}, (err, article) => {
-          if (err) {
-            updateStatus(videoId, 'failed');
-            console.log('error fetching article ', err);
-            return convertChannel.ack(msg);
-          }
-          console.log('converting article ', article.title)
-
-          // Update status
-          updateStatus(videoId, 'progress');
-          convertArticle({ article, video, videoId, withSubtitles: video.withSubtitles }, (err, convertResult) => {
-            console.log('convert rsult is ', convertResult)
-            if (err) {
-              updateStatus(videoId, 'failed');
-              console.log(err);
-              return convertChannel.ack(msg);
-            }
-            utils.uploadVideoToS3(convertResult.videoPath, (err, uploadVideoResult) => {
-
-              if (err) {
-                console.log('error uploading file', err);
-                updateStatus(videoId, 'failed');                
-                return convertChannel.ack(msg);
-              }
-              const { url, ETag } = uploadVideoResult;
-              let videoUpdate = {
-                url,
-                ETag,
-                status: 'converted',
-                wrapupVideoProgress: 100,
-              }
-              // console.log('converted at ', url)
-              if (convertResult.subtitles) {
-                // Upload generated subtitles to s3
-                utils.uploadSubtitlesToS3(convertResult.subtitles, (err, uploadSubtitlesResult) => {
-                  if (err) {
-                    console.log('error uploading subtitles to s3', err);
-                  } else if (uploadSubtitlesResult && Object.keys(uploadSubtitlesResult).length > 0) {
-                    videoUpdate.commonsSubtitles = uploadSubtitlesResult.url;
-                    videoUpdate = {
-                      ...videoUpdate,
-                      ...uploadSubtitlesResult
-                    }
-                  }
-                  VideoModel.findByIdAndUpdate(videoId, { $set: videoUpdate }, { new: true }, (err, result) => {
-                    if (err) {
-                      updateStatus(videoId, 'failed');                  
-                      console.log(err);
-                    }
-                    console.log('Done!', result)
-                    convertChannel.ack(msg);
-                    updateProgress(videoId, 100);
-                    convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
-                    // Cleanup
-                    fs.unlink(convertResult.videoPath, () => {});
-                    Object.keys(convertResult.subtitles).forEach(key => {
-                      fs.unlink(convertResult.subtitles[key], () => {});
-                    })
-                  })
-                })
-
-              } else {
-
-                VideoModel.findByIdAndUpdate(videoId, { $set: videoUpdate }, { new: true }, (err, result) => {
-                  if (err) {
-                    updateStatus(videoId, 'failed');                  
-                    console.log(err);
-                  }
-                  console.log('Done!', result);
-                  convertChannel.ack(msg);
-                  updateProgress(videoId, 100);
-                  convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
-                  // Cleanup
-                  fs.unlink(convertResult.videoPath, () => {});
-                })
-              }
-            })
-          })
-        })
-      })
-
-    }, { noAck: false });
+    convertChannel.consume(DELETE_AWS_VIDEO, deleteAWSVideoCallback);
+    convertChannel.consume(CONVERT_QUEUE, convertQueueCallback, { noAck: false });
   })
 })
 
+function convertQueueCallback(msg) {
+  const { videoId } = JSON.parse(msg.content.toString());
+  
+  VideoModel.findById(videoId, (err, video) => {
+    if (err) {
+      updateStatus(videoId, 'failed');
+      console.log('error retrieving video', err);
+      return convertChannel.ack(msg);
+    }
+    if (!video) {
+      console.log('invalid video id');
+      updateStatus(videoId, 'failed');          
+      return convertChannel.ack(msg);
+    }
+
+    ArticleModel.findOne({title: video.title, wikiSource: video.wikiSource, published: true}, (err, article) => {
+      if (err) {
+        updateStatus(videoId, 'failed');
+        console.log('error fetching article ', err);
+        return convertChannel.ack(msg);
+      }
+      console.log('converting article ', article.title)
+
+      // Update status
+      updateStatus(videoId, 'progress');
+      convertArticle({ article, video, videoId, withSubtitles: video.withSubtitles }, (err, convertResult) => {
+        console.log('convert rsult is ', convertResult)
+        if (err) {
+          updateStatus(videoId, 'failed');
+          console.log(err);
+          return convertChannel.ack(msg);
+        }
+        utils.uploadVideoToS3(convertResult.videoPath, (err, uploadVideoResult) => {
+
+          if (err) {
+            console.log('error uploading file', err);
+            updateStatus(videoId, 'failed');                
+            return convertChannel.ack(msg);
+          }
+          const { url, ETag } = uploadVideoResult;
+          let videoUpdate = {
+            url,
+            ETag,
+            status: 'converted',
+            wrapupVideoProgress: 100,
+          }
+          // console.log('converted at ', url)
+          if (convertResult.subtitles) {
+            // Upload generated subtitles to s3
+            utils.uploadSubtitlesToS3(convertResult.subtitles, (err, uploadSubtitlesResult) => {
+              if (err) {
+                console.log('error uploading subtitles to s3', err);
+              } else if (uploadSubtitlesResult && Object.keys(uploadSubtitlesResult).length > 0) {
+                videoUpdate.commonsSubtitles = uploadSubtitlesResult.url;
+                videoUpdate = {
+                  ...videoUpdate,
+                  ...uploadSubtitlesResult
+                }
+              }
+              VideoModel.findByIdAndUpdate(videoId, { $set: videoUpdate }, { new: true }, (err, result) => {
+                if (err) {
+                  updateStatus(videoId, 'failed');                  
+                  console.log(err);
+                }
+                console.log('Done!', result)
+                convertChannel.ack(msg);
+                updateProgress(videoId, 100);
+                convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
+                // Cleanup
+                fs.unlink(convertResult.videoPath, () => {});
+                Object.keys(convertResult.subtitles).forEach(key => {
+                  fs.unlink(convertResult.subtitles[key], () => {});
+                })
+              })
+            })
+
+          } else {
+
+            VideoModel.findByIdAndUpdate(videoId, { $set: videoUpdate }, { new: true }, (err, result) => {
+              if (err) {
+                updateStatus(videoId, 'failed');                  
+                console.log(err);
+              }
+              console.log('Done!', result);
+              convertChannel.ack(msg);
+              updateProgress(videoId, 100);
+              convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
+              // Cleanup
+              fs.unlink(convertResult.videoPath, () => {});
+            })
+          }
+        })
+      })
+    })
+  })
+
+}
+
+function deleteAWSVideoCallback(msg) {
+  const { videoId } = JSON.parse(msg.content.toString());
+
+  VideoModel.findById(videoId, (err, video) => {
+    if (err) {
+      console.log('error fetching video ', err, videoId);
+      return;
+    }
+    if (!video) {
+      console.log('invalid video id ', videoId);
+      return;
+    }
+
+    if (video && video.url) {
+      const fileName = video.url.split('/').pop();
+      console.log('file name is ', fileName)
+      utils.deleteVideoFromS3(fileName, (err, result) => {
+        if (err) {
+          console.log('Error deleting video from s3', err);
+          return;
+        }
+        console.log('successfully delete video from s3', result);
+        VideoModel.findByIdAndUpdate(videoId, { $unset: { url: true }}, (err, result) => {
+          console.log(err, result);
+        })
+      })
+    }
+  })
+}
 
 
 function convertArticle({ article, video, videoId, withSubtitles }, callback) {
@@ -366,11 +400,11 @@ function updateStatus(videoId, status) {
   })
 }
 
-ArticleModel.count({}, (err, count) => {
+ArticleModel.count({ published: true }, (err, count) => {
   if (err) {
     console.log(err);
   } else {
-    console.log(`Ready to handle a total of ${count} articles in the database!`)
+    console.log(`Ready to handle a total of ${count} published articles in the database!`)
   }
 })
 
@@ -408,3 +442,6 @@ ArticleModel.count({}, (err, count) => {
 //   // });
   
 // })
+
+
+deleteAWSVideo({content: JSON.stringify({videoId: "5c45d5bddf724966e81923ec"})});
