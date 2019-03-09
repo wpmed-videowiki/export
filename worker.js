@@ -26,9 +26,11 @@ const DB_CONNECTION = `${process.env.DB_HOST_URL}-${lang}`;
 // const DB_CONNECTION = 'mongodb://localhost/videowiki-en'
 console.log('connecting to database ', DB_CONNECTION);
 mongoose.connect(DB_CONNECTION)
+let convertChannel;
 amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
   console.log('error is', err);
-  conn.createChannel((err, convertChannel) => {
+  conn.createChannel((err, ch) => {
+    convertChannel = ch;
     convertChannel.prefetch(1);
     console.log('connection created')
     convertChannel.assertQueue(CONVERT_QUEUE, {durable: true});
@@ -211,7 +213,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
 
           slowVideoRate(videoPath, {
             onEnd: (err, slowedVideoPath) => {
-              if (err) {
+              if (err || !fs.existsSync(slowedVideoPath)) {
                 slide.video = videoPath;
               } else {
                 slide.video = slowedVideoPath;
@@ -442,6 +444,3 @@ ArticleModel.count({ published: true }, (err, count) => {
 //   // });
   
 // })
-
-
-deleteAWSVideo({content: JSON.stringify({videoId: "5c45d5bddf724966e81923ec"})});
