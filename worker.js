@@ -237,26 +237,26 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
         }
 
         utils.getMediaInfo(slide.media, (err, info) => {
-          let subtitle = '';
+          let subText = '';
           if (err) {
             console.log('error fetching media author and licence', err)
           } else {
             if (info.author) {
-              subtitle = `Visual Content by ${info.author}, `
+              subText = `Visual Content by ${info.author}, `
             }
             if (info.licence) {
-              subtitle += info.licence
+              subText += info.licence
             }
           }
           const $ = cheerio.load(`<div>${slide.text}</div>`);
           const slideText = $.text();
           
           if (utils.getFileType(slide.media) === 'image') {
-            imageToVideo(slide.media, audioUrl, slideText, subtitle, false, fileName, convertCallback);
+            imageToVideo(slide.media, audioUrl, slideText, subText, false, fileName, convertCallback);
           } else if (utils.getFileType(slide.media) === 'video') {
-            videoToVideo(slide.media, audioUrl, slideText, subtitle, false, fileName, convertCallback);
+            videoToVideo(slide.media, audioUrl, slideText, subText, false, fileName, convertCallback);
           } else if (utils.getFileType(slide.media) === 'gif') {
-            gifToVideo(slide.media, audioUrl, slideText, subtitle, false, fileName, convertCallback);
+            gifToVideo(slide.media, audioUrl, slideText, subText, false, fileName, convertCallback);
           } else {
             return cb(new Error('Invalid file type'));
           }
