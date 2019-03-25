@@ -101,7 +101,19 @@ function getRemoteFileDuration(url, callback) {
     }
     return callback(null, parseFloat(stdout.replace('\\n', '')))
   })
+}
 
+function downloadMediaFile(url, destination, callback = () => {}) {
+  exec(`ffmpeg -y -i ${url} -vcodec copy -acodec copy ${destination}`, (err, stdout, stderr) => {
+    if (err) {
+      return callback(err);
+    }
+    // ffmpeg emits warn messages on stderr, omit it and check if the file exists
+    if (!fs.existsSync(destination)) {
+      return callback(new Error('Failed to download file'));
+    }
+    return callback(null, destination);
+  })
 }
 
 function getFilesDuration(urls, callback) {
@@ -465,6 +477,7 @@ module.exports = {
   getVideoDimentions,
   getVideoFramerate,
   getFileType,
+  downloadMediaFile,
   getReferencesImage,
   getOriginalCommonsUrl,
   generateReferencesVideos,

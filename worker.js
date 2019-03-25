@@ -12,8 +12,10 @@ const utils = require('./utils');
 const subtitles = require('./subtitles');
 const { DEFAUL_IMAGE_URL } = require('./constants');
 
+const UserModel = require('./models/User');
 const ArticleModel = require('./models/Article');
 const VideoModel = require('./models/Video');
+const HumanVoiceModel = require('./models/HumanVoice');
 
 const args = process.argv.slice(2);
 const lang = args[0];
@@ -45,7 +47,10 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
 function convertQueueCallback(msg) {
   const { videoId } = JSON.parse(msg.content.toString());
   
-  VideoModel.findById(videoId, (err, video) => {
+  VideoModel
+  .findById(videoId)
+  .populate('humanvoice')
+  .exec((err, video) => {
     if (err) {
       updateStatus(videoId, 'failed');
       console.log('error retrieving video', err);
@@ -177,6 +182,14 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   const slidesHtml = article.slidesHtml.slice();
   const verifySlidesMediaFuncArray = [];
 
+  if (video.humanvoice && video.humanvoice.audios && video.humanvoice.audios.length === slidesHtml.length) {
+    console.log('custom human voice')
+    video.humanvoice.audios.forEach((audio) => {
+      if (audio.position < slidesHtml.length) {
+        slidesHtml[audio.position].audio = audio.audioURL;
+      }
+    })
+  }
   slidesHtml.forEach(slide => {
     function verifyMedia(cb) {
       if (!slide.media) {
@@ -196,192 +209,223 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
     verifySlidesMediaFuncArray.push(verifyMedia);
   })
 
-  async.parallelLimit(async.reflectAll(verifySlidesMediaFuncArray), 10, (err, result) => {
+  async.parallelLimit(async.reflectAll(verifySlidesMediaFuncArray), 2, (err, result) => {
     if (err) {
       console.log('error verifying slides media');
     }
+    // Download media and audio for local use
+    const downAudioFuncArray = [];
+
+    slidesHtml.forEach((slide) => {
+      function downAudioFunc(cb) {
+        const tempAudioFile = path.join(__dirname, 'tmp', `downTmpAudio-${Date.now()}-${slide.audio.split('/').pop()}`);
+        utils.downloadMediaFile(`https:${slide.audio}`, tempAudioFile, (err) => {
+          if (!err) {
+            slide.tmpAudio = tempAudioFile;
+          } else {
+            console.log('error downloading tmp audio', err);
+          }
+          return cb();
+        })
+      }
+      downAudioFuncArray.push(downAudioFunc);
+    })
     
-    slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
-      function convert(cb) {
-        const fileName = `videos/${slide.audio.split('/').pop().replace('.mp3', '.webm')}`
-        const audioUrl = 'https:' + slide.audio;
-        const convertCallback = (err, videoPath) => {
-          if (err) {
-            console.log('error in async ', err);
-            return cb(err);
+    async.parallelLimit(async.reflectAll(downAudioFuncArray), 2, (err, value) => {
+      if (err) {
+        console.log('error fetching tmp medias', err);
+      }
+
+      slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
+        function convert(cb) {
+          const fileName = `videos/${slide.audio.split('/').pop().replace('.mp3', '.webm')}`
+          const audioUrl = slide.tmpAudio || `https:${slide.audio}`;
+          const convertCallback = (err, videoPath) => {
+            if (err) {
+              console.log('error in async ', err);
+              return cb(err);
+            }
+            // Clear tmp media and audio if exists
+            if (slide.tmpAudio) {
+              fs.unlink(slide.tmpAudio, () => {});
+            }
+
+            slowVideoRate(videoPath, {
+              onEnd: (err, slowedVideoPath) => {
+                if (err || !fs.existsSync(slowedVideoPath)) {
+                  slide.video = videoPath;
+                } else {
+                  slide.video = slowedVideoPath;
+                  fs.unlink(videoPath, () => {});
+                }
+                progress += (1 / article.slides.length) * 100;
+                updateProgress(videoId, progress);
+                
+                console.log(`Progress ####### ${progress} ######`)
+                return cb(null, {
+                  fileName: slide.video,
+                  index
+                });
+              }
+            })
+          }
+          // End convert callback
+          
+          if (!slide.media) {
+            slide.media = DEFAUL_IMAGE_URL;
+            slide.mediaType = 'image';
           }
 
-          slowVideoRate(videoPath, {
-            onEnd: (err, slowedVideoPath) => {
-              if (err || !fs.existsSync(slowedVideoPath)) {
-                slide.video = videoPath;
-              } else {
-                slide.video = slowedVideoPath;
-                fs.unlink(videoPath, () => {});
+          utils.getMediaInfo(slide.media, (err, info) => {
+            let subText = '';
+            if (err) {
+              console.log('error fetching media author and licence', err)
+            } else {
+              if (info.author) {
+                subText = `Visual Content by ${info.author}, `
               }
-              progress += (1 / article.slides.length) * 100;
-              updateProgress(videoId, progress);
-              
-              console.log(`Progress ####### ${progress} ######`)
-              return cb(null, {
-                fileName: slide.video,
-                index
-              });
+              if (info.licence) {
+                subText += info.licence
+              }
+            }
+            const $ = cheerio.load(`<div>${slide.text}</div>`);
+            const slideText = $.text();
+            
+            const slideMediaUrl = slide.media;
+            console.log('working on media', slideMediaUrl)
+            if (utils.getFileType(slide.media) === 'image') {
+              imageToVideo(slideMediaUrl, audioUrl, slideText, subText, false, fileName, convertCallback);
+            } else if (utils.getFileType(slide.media) === 'video') {
+              videoToVideo(slideMediaUrl, audioUrl, slideText, subText, false, fileName, convertCallback);
+            } else if (utils.getFileType(slide.media) === 'gif') {
+              gifToVideo(slideMediaUrl, audioUrl, slideText, subText, false, fileName, convertCallback);
+            } else {
+              return cb(new Error('Invalid file type'));
             }
           })
         }
         
-        if (!slide.media) {
-          slide.media = DEFAUL_IMAGE_URL;
-          slide.mediaType = 'image';
-        }
-
-        utils.getMediaInfo(slide.media, (err, info) => {
-          let subText = '';
-          if (err) {
-            console.log('error fetching media author and licence', err)
-          } else {
-            if (info.author) {
-              subText = `Visual Content by ${info.author}, `
-            }
-            if (info.licence) {
-              subText += info.licence
-            }
-          }
-          const $ = cheerio.load(`<div>${slide.text}</div>`);
-          const slideText = $.text();
-          
-          if (utils.getFileType(slide.media) === 'image') {
-            imageToVideo(slide.media, audioUrl, slideText, subText, false, fileName, convertCallback);
-          } else if (utils.getFileType(slide.media) === 'video') {
-            videoToVideo(slide.media, audioUrl, slideText, subText, false, fileName, convertCallback);
-          } else if (utils.getFileType(slide.media) === 'gif') {
-            gifToVideo(slide.media, audioUrl, slideText, subText, false, fileName, convertCallback);
-          } else {
-            return cb(new Error('Invalid file type'));
-          }
-        })
-      }
+        convertFuncArray.push(convert);
+      })
       
-      convertFuncArray.push(convert);
-    })
-    
-    async.parallelLimit(convertFuncArray, 2, (err, results) => {
-      if (err) {
-        VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
-        })
-        return callback(err);
-      }
-      updateProgress(videoId, 100);    
-      results = results.sort((a, b) => a.index - b.index);
-      // Generate the user credits slides
-      utils.generateCreditsVideos(article.title, article.wikiSource, video.extraUsers, (err, creditsVideos) => {
+      async.parallelLimit(convertFuncArray, 2, (err, results) => {
         if (err) {
-          console.log('error creating credits videos', err);
+          VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
+          })
+          return callback(err);
         }
-        // Generate the article references slides
-        utils.generateReferencesVideos(article.title, article.wikiSource, article.referencesList,{
-          onProgress: (progress) => {
-            if (progress && progress !== 'null') {
-              VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: progress }}, (err, result) => {
+        updateProgress(videoId, 100);    
+        results = results.sort((a, b) => a.index - b.index);
+        // Generate the user credits slides
+        utils.generateCreditsVideos(article.title, article.wikiSource, video.extraUsers, (err, creditsVideos) => {
+          if (err) {
+            console.log('error creating credits videos', err);
+          }
+          // Generate the article references slides
+          utils.generateReferencesVideos(article.title, article.wikiSource, article.referencesList,{
+            onProgress: (progress) => {
+              if (progress && progress !== 'null') {
+                VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: progress }}, (err, result) => {
+                })
+              }
+            },
+            
+            onEnd: (err, referencesVideos) => {
+              // Considere progress done
+              VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: 100 }}, (err, result) => {
+              })
+              
+              if (err) {
+                console.log('error creating references videos', err);
+              }
+
+              let finalVideos = [];
+              if (results) {
+                finalVideos = finalVideos.concat(results);
+              }
+              // Add Share video
+              finalVideos.push({ fileName: 'cc_share.webm', });
+              if (creditsVideos && creditsVideos.length > 0) {
+                finalVideos = finalVideos.concat(creditsVideos);
+              }
+              if (referencesVideos && referencesVideos.length > 0) {
+                finalVideos = finalVideos.concat(referencesVideos);
+              }
+              
+              combineVideos(finalVideos, {
+                onProgress: (progress) => {
+                  if (progress && progress !== 'null') {
+                    VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: progress }}, (err, result) => {
+                    })
+                  }
+                },
+                
+                onEnd: (err, videoPath) => {
+                  if (err) {
+                    console.log(err);
+                    VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
+                    })
+                    return callback(err);
+                  }
+                  
+                  VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: 100, wrapupVideoProgress: 20 }}, (err, result) => {
+                  })
+                  
+
+                  subtitles.generateSrtSubtitles(slidesHtml, 1, (err, subs) => {
+                    const cbResult = { videoPath };
+                    if (err) {
+                      console.log('error generating subtitles file', err);
+                    }
+
+                    if (subs) {
+                      cbResult.subtitles = subs;
+                    }
+                    
+                    VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: 70 }}, (err, result) => {
+                    })
+                    // Cleanup
+                    slidesHtml.forEach(slide => {
+                      if (slide.video && fs.existsSync(slide.video)) {
+                        fs.unlink(slide.video, () => {});
+                      }
+                    })
+                    
+                    if (referencesVideos) {
+                      referencesVideos.forEach(video => fs.existsSync(video.fileName) && fs.unlink(video.fileName, () => {}));
+                    }
+                    
+                    if (creditsVideos) {
+                      creditsVideos.forEach(video => fs.existsSync(video.fileName) && fs.unlink(video.fileName, () => {}));
+                    }
+
+                    return callback(null, cbResult);
+                  })              
+
+                  // slowVideoRate(videoPath,{
+                  //   onProgress: (progress) => {
+                  //     if (progress && progress !== 'null') {
+                  //         VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: progress > 90 ? 90 : progress }}, (err, result) => {
+                  //         }) 
+                  //       }
+                  //     },
+                  //   onEnd: (err, slowVideoPath) => {
+                  //     if (err) {
+                  //       // If something failed at this stage, just send back the normal video
+                  //       // That's not slowed down
+                  //       return callback(null, videoPath);
+                  //     }
+                  //     return callback(null, slowVideoPath);
+                  //   }
+                  // })
+                }
               })
             }
-          },
-          
-          onEnd: (err, referencesVideos) => {
-            // Considere progress done
-            VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: 100 }}, (err, result) => {
-            })
-            
-            if (err) {
-              console.log('error creating references videos', err);
-            }
-
-            let finalVideos = [];
-            if (results) {
-              finalVideos = finalVideos.concat(results);
-            }
-            // Add Share video
-            finalVideos.push({ fileName: 'cc_share.webm', });
-            if (creditsVideos && creditsVideos.length > 0) {
-              finalVideos = finalVideos.concat(creditsVideos);
-            }
-            if (referencesVideos && referencesVideos.length > 0) {
-              finalVideos = finalVideos.concat(referencesVideos);
-            }
-            
-            combineVideos(finalVideos, {
-              onProgress: (progress) => {
-                if (progress && progress !== 'null') {
-                  VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: progress }}, (err, result) => {
-                  })
-                }
-              },
-              
-              onEnd: (err, videoPath) => {
-                if (err) {
-                  console.log(err);
-                  VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
-                  })
-                  return callback(err);
-                }
-                
-                VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: 100, wrapupVideoProgress: 20 }}, (err, result) => {
-                })
-                
-
-                subtitles.generateSrtSubtitles(slidesHtml, 1, (err, subs) => {
-                  const cbResult = { videoPath };
-                  if (err) {
-                    console.log('error generating subtitles file', err);
-                  }
-
-                  if (subs) {
-                    cbResult.subtitles = subs;
-                  }
-                  
-                  VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: 70 }}, (err, result) => {
-                  })
-                  // Cleanup
-                  slidesHtml.forEach(slide => {
-                    if (slide.video && fs.existsSync(slide.video)) {
-                      fs.unlink(slide.video, () => {});
-                    }
-                  })
-                  
-                  if (referencesVideos) {
-                    referencesVideos.forEach(video => fs.existsSync(video.fileName) && fs.unlink(video.fileName, () => {}));
-                  }
-                  
-                  if (creditsVideos) {
-                    creditsVideos.forEach(video => fs.existsSync(video.fileName) && fs.unlink(video.fileName, () => {}));
-                  }
-
-                  return callback(null, cbResult);
-                })              
-
-                // slowVideoRate(videoPath,{
-                //   onProgress: (progress) => {
-                //     if (progress && progress !== 'null') {
-                //         VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: progress > 90 ? 90 : progress }}, (err, result) => {
-                //         }) 
-                //       }
-                //     },
-                //   onEnd: (err, slowVideoPath) => {
-                //     if (err) {
-                //       // If something failed at this stage, just send back the normal video
-                //       // That's not slowed down
-                //       return callback(null, videoPath);
-                //     }
-                //     return callback(null, slowVideoPath);
-                //   }
-                // })
-              }
-            })
-          }
+          })
         })
       })
     })
+
   })
 }
 

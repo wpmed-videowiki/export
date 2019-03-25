@@ -6,7 +6,8 @@ const SchemaTypes = mongoose.Schema.Types
 const VideoSchema = new Schema({
   title: { type: String, required: true },
   wikiSource: { type: String, required: true },
-  user: String,
+  user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  humanvoice: { type: Schema.Types.ObjectId, ref: 'HumanVoice' },
   extraUsers: [String],
   version: String,
   status: { type: String, enum: ['queued', 'progress', 'converted', 'uploaded', 'failed'], default: 'queued' },
