@@ -50,6 +50,7 @@ function convertQueueCallback(msg) {
   VideoModel
   .findById(videoId)
   .populate('humanvoice')
+  .populate('user')
   .exec((err, video) => {
     if (err) {
       updateStatus(videoId, 'failed');
@@ -61,7 +62,7 @@ function convertQueueCallback(msg) {
       updateStatus(videoId, 'failed');          
       return convertChannel.ack(msg);
     }
-
+    console.log('video is ', video);
     ArticleModel.findOne({title: video.title, wikiSource: video.wikiSource, published: true}, (err, article) => {
       if (err) {
         updateStatus(videoId, 'failed');
@@ -317,7 +318,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
         updateProgress(videoId, 100);    
         results = results.sort((a, b) => a.index - b.index);
         // Generate the user credits slides
-        utils.generateCreditsVideos(article.title, article.wikiSource, video.extraUsers, (err, creditsVideos) => {
+        utils.generateCreditsVideos(article.title, article.wikiSource, video, (err, creditsVideos) => {
           if (err) {
             console.log('error creating credits videos', err);
           }
@@ -400,24 +401,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                     }
 
                     return callback(null, cbResult);
-                  })              
-
-                  // slowVideoRate(videoPath,{
-                  //   onProgress: (progress) => {
-                  //     if (progress && progress !== 'null') {
-                  //         VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: progress > 90 ? 90 : progress }}, (err, result) => {
-                  //         }) 
-                  //       }
-                  //     },
-                  //   onEnd: (err, slowVideoPath) => {
-                  //     if (err) {
-                  //       // If something failed at this stage, just send back the normal video
-                  //       // That's not slowed down
-                  //       return callback(null, videoPath);
-                  //     }
-                  //     return callback(null, slowVideoPath);
-                  //   }
-                  // })
+                  })
                 }
               })
             }

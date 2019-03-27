@@ -14,7 +14,7 @@ const async = require('async');
 const BUCKET_NAME = 'vwconverter'
 const REGION = 'eu-west-1';
 
-const IMAGE_EXTENSIONS = ['jpeg', 'jpg', 'png'];
+const IMAGE_EXTENSIONS = ['jpeg', 'jpg', 'png', 'svg'];
 const VIDEOS_EXTESION = ['webm', 'mp4', 'ogg', 'ogv'];
 const GIF_EXTESIONS = ['gif'];
 
@@ -24,6 +24,7 @@ const s3 = new AWS.S3({
   accessKeyId: process.env.S3_ACCESS_KEY, 
   secretAccessKey: process.env.S3_ACCESS_SECRET
 })
+
 
 function normalizeTitle(title) {
   return decodeURI(title.replace(new RegExp('%2C', 'g'), ','));
@@ -394,8 +395,7 @@ function generateReferencesVideos(title, wikiSource, references, { onProgress, o
     images.forEach((image, index) => {
       function refVid(cb) {
         const videoName = `videos/refvid-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
-        exec(`ffmpeg -loop 1 -i ${image.image} -c:v libvpx-vp9 -t 2 -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t 2 -pix_fmt yuv420p  -filter_complex "[0:v]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2" ${videoName}`, (err, stdout, stderr) => {
-          console.log(err, stdout, stderr);
+        convertImageToSilentVideo(image.image, videoName, (err) => {
           fs.unlink(image.image, () => {});
           doneCount ++;
           onProgress(doneCount / images.length * 100);
@@ -416,24 +416,45 @@ function generateReferencesVideos(title, wikiSource, references, { onProgress, o
 }
 
 
-function generateCreditsVideos(title, wikiSource, extraUsers, callback) {
+function generateCreditsVideos(title, wikiSource, { extraUsers, humanvoice, user }, callback) {
   getCreditsImages(title, wikiSource, extraUsers, (err, images) => {
     if (err) return callback(err);
-    if (!images || images.length === 0) return callback(null, []);
-
     const refFuncArray = [];
-    images.forEach((image, index) => {
-      function refVid(cb) {
-        const videoName = `videos/refvid-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
-        exec(`ffmpeg -loop 1 -i ${image.image} -c:v libvpx-vp9 -t 2 -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t 2 -pix_fmt yuv420p  -filter_complex "[0:v]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2" ${videoName}`, (err, stdout, stderr) => {
-          console.log(err, stdout, stderr);
-          fs.unlink(image.image, () => {})
-          cb(null, { fileName: videoName, index, silent: true });
-        })
-      }
-      refFuncArray.push(refVid);
-    })
 
+    if (images || images.length !== 0) {
+      images.forEach((image, index) => {
+        function refVid(cb) {
+          const videoName = `videos/refvid-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
+          convertImageToSilentVideo(image.image, videoName, (err) => {
+            fs.unlink(image.image, () => {})
+            if (err) {
+              return cb(err);
+            }
+            return cb(null, { fileName: videoName, index, silent: true });
+          })
+        }
+        refFuncArray.push(refVid);
+      })      
+    }
+
+    // Add audio by if it has human voice
+    if (humanvoice && user) {
+      refFuncArray.push(function(cb) {
+        generateAudioByImage(user.username, (err, imageInfo) => {
+          if (err) {
+            return cb(err)
+          }
+          const videoName = path.join(__dirname, 'tmp' , `video-audio-by-${Date.now()}${parseInt(Math.random() * 10000)}.webm`);
+          convertImageToSilentVideo(imageInfo.image, videoName, (err) => {
+            fs.unlink(imageInfo.image, () => {});
+            if (err) {
+              return cb(err);
+            }
+            return cb(null, { fileName: videoName, index: images && images.length > 0 ? images.length : 0, silent: true })
+          })
+        })
+      });
+    }
     async.series(refFuncArray, (err, result) => {
       console.log(err, result);
       if (err) {
@@ -453,6 +474,33 @@ function checkMediaFileExists(fileUrl, callback = () => {}) {
   })
 }
 
+function generateAudioByImage(username, callback) {
+  ejs.renderFile(path.join(__dirname, 'templates', 'audio_by.ejs'),
+    { username }, 
+    { escape: (item) => item },
+    (err, html) => {
+      const imageName = path.join(__dirname, 'tmp' , `image-audio-by-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
+      webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'all', height: 'all'},  windowSize: { width: 1311
+        , height: 620 } }, function(err) {
+          if (err) {
+            return callback(err);
+          }
+          return callback(null, { image: imageName })
+      });
+  });
+}
+
+function convertImageToSilentVideo(image, outputPath, callback = () => {}) {
+  exec(`ffmpeg -loop 1 -i ${image} -c:v libvpx-vp9 -t 2 -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t 2 -pix_fmt yuv420p  -filter_complex "[0:v]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2" ${outputPath}`, (err, stdout, stderr) => {
+    if (err) {
+      return callback(err);
+    }
+    if (!fs.existsSync(outputPath)) {
+      return callback(new Error('Something went wrong'));
+    }
+    return callback(null, outputPath);
+  })
+}
 
 // function generateShareVideo(callback) {
 //   const videoName = `videos/refvid-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
