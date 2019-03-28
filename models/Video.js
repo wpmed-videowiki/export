@@ -20,6 +20,7 @@ const VideoSchema = new Schema({
   wrapupVideoProgress: { type: Number, default: 0 },
   url: String,
   ETag: String, // s3 tag id 
+  lang: String,
   error: String, 
   withSubtitles: { type: Boolean, default: false },
   commonsSubtitles: { type: String },

@@ -293,7 +293,6 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             const slideText = $.text();
             
             const slideMediaUrl = slide.media;
-            console.log('working on media', slideMediaUrl)
             if (utils.getFileType(slide.media) === 'image') {
               imageToVideo(slideMediaUrl, audioUrl, slideText, subText, false, fileName, convertCallback);
             } else if (utils.getFileType(slide.media) === 'video') {
@@ -374,7 +373,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                   
                   const subtitledSlides = JSON.parse(JSON.stringify(slidesHtml));
                   // If we have human voice, use the user's translation as the subtitles
-                  if (video.humanvoice && video.humanvoice.translatedSlides) {
+                  if (video.humanvoice && video.humanvoice.translatedSlides && video.lang !== article.lang) {
                     video.humanvoice.translatedSlides.forEach((slide) => {
                       subtitledSlides[slide.position].text = slide.text;
                     });
