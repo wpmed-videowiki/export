@@ -372,8 +372,14 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                   VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: 100, wrapupVideoProgress: 20 }}, (err, result) => {
                   })
                   
-
-                  subtitles.generateSrtSubtitles(slidesHtml, 1, (err, subs) => {
+                  const subtitledSlides = JSON.parse(JSON.stringify(slidesHtml));
+                  // If we have human voice, use the user's translation as the subtitles
+                  if (video.humanvoice && video.humanvoice.translatedSlides) {
+                    video.humanvoice.translatedSlides.forEach((slide) => {
+                      subtitledSlides[slide.position].text = slide.text;
+                    });
+                  }
+                  subtitles.generateSrtSubtitles(subtitledSlides, 1, (err, subs) => {
                     const cbResult = { videoPath };
                     if (err) {
                       console.log('error generating subtitles file', err);
