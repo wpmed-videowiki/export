@@ -285,55 +285,62 @@ function getMediaInfo(url, callback) {
 
 
 function getReferencesImage(title, wikiSource, references, callback) {
-  const refArray = Object.keys(references).sort((a, b) => parseInt(a)-parseInt(b)).map(ref => ({ referenceNumber: ref, html: references[ref], links: [] }) );
+  if (!references) {
+    setTimeout(() => {
+      return callback(null, []);
+    });
+  } else {
+    const refArray = Object.keys(references).sort((a, b) => parseInt(a)-parseInt(b)).map(ref => ({ referenceNumber: ref, html: references[ref], links: [] }) );
 
-  if (refArray.length === 0) return callback(null, []);
-
-  refArray.forEach(item => {
-    $ = cheerio.load(`<div>${item.html}</div>`);
-    
-    $('a').each(function(index, el) {
-      const link = $(this);
-      link.attr('target', '_blank');
-      if (link.attr('href') && (link.attr('href').indexOf('https') === -1 && link.attr('href').indexOf('http') === -1 )) {
-        if (link.attr('href').indexOf('#') === 0) {
-          link.attr('href', `${wikiSource}/wiki/${title}${link.attr('href')}`);
-        } else {
-          link.attr('href', `${wikiSource}${link.attr('href')}`);
+    if (refArray.length === 0) return callback(null, []);
+  
+    refArray.forEach(item => {
+      $ = cheerio.load(`<div>${item.html}</div>`);
+      
+      $('a').each(function(index, el) {
+        const link = $(this);
+        link.attr('target', '_blank');
+        if (link.attr('href') && (link.attr('href').indexOf('https') === -1 && link.attr('href').indexOf('http') === -1 )) {
+          if (link.attr('href').indexOf('#') === 0) {
+            link.attr('href', `${wikiSource}/wiki/${title}${link.attr('href')}`);
+          } else {
+            link.attr('href', `${wikiSource}${link.attr('href')}`);
+          }
         }
-      }
-      // Dont include self referencing links within Wikimedia
-      if (link.attr('href').indexOf(`/wiki/`) === -1) {
-        item.links.push(link.attr('href'));
-      }
+        // Dont include self referencing links within Wikimedia
+        if (link.attr('href').indexOf(`/wiki/`) === -1) {
+          item.links.push(link.attr('href'));
+        }
+      })
     })
-  })
-  let refChunks = lodash.chunk(refArray, 5);
-  let start = 1;
-  let renderRefsFuncArray = []
-  refChunks.forEach((chunk, index) => {
-    function renderRefs(cb) {
-      ejs.renderFile(path.join(__dirname, 'templates', 'references.ejs'),
-        { references: chunk, start }, 
-        { escape: (item) => item }, 
-        (err, html) => {
-          if (err) return cb(err);
-          const imageName = path.join(__dirname, 'tmp' , `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
-          webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'window', height: 'all'} }, function(err) {
+    let refChunks = lodash.chunk(refArray, 5);
+    let start = 1;
+    let renderRefsFuncArray = []
+    refChunks.forEach((chunk, index) => {
+      function renderRefs(cb) {
+        ejs.renderFile(path.join(__dirname, 'templates', 'references.ejs'),
+          { references: chunk, start }, 
+          { escape: (item) => item }, 
+          (err, html) => {
             if (err) return cb(err);
-            start += chunk.length;
-            cb(null, { image: imageName, index })
-          });
-      });
-    }
-    renderRefsFuncArray.push(renderRefs);
-  })
-
-  async.series(renderRefsFuncArray, (err, result) => {
-    console.log('done', err, result);
-    if (err) return callback(err);
-    return callback(null, result);
-  })
+            const imageName = path.join(__dirname, 'tmp' , `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
+            webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'window', height: 'all'} }, function(err) {
+              if (err) return cb(err);
+              start += chunk.length;
+              cb(null, { image: imageName, index })
+            });
+        });
+      }
+      renderRefsFuncArray.push(renderRefs);
+    })
+  
+    async.series(renderRefsFuncArray, (err, result) => {
+      console.log('done', err, result);
+      if (err) return callback(err);
+      return callback(null, result);
+    })
+  
+  }
 }
 
 function getCreditsImages(title, wikiSource, extraUsers = [], callback = () => {}) {
