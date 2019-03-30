@@ -14,7 +14,7 @@ const async = require('async');
 const BUCKET_NAME = 'vwconverter'
 const REGION = 'eu-west-1';
 
-const IMAGE_EXTENSIONS = ['jpeg', 'jpg', 'png', 'svg'];
+const IMAGE_EXTENSIONS = ['jpeg', 'jpg', 'png', 'svg', 'tif', 'tiff', 'webp', 'jif', 'jfif', 'jp2','jpx','j2k', 'j2c', 'fpx', 'pcd'];
 const VIDEOS_EXTESION = ['webm', 'mp4', 'ogg', 'ogv'];
 const GIF_EXTESIONS = ['gif'];
 
