@@ -270,7 +270,7 @@ function getMediaInfo(url, callback) {
           author = authorWrapper.text();
         }
         if (author) {
-          author = author.trim().replace('User:', '').replace(/\:/g, '');
+          author = author.trim().replace('User:', '').replace(/\:/g, '').replace(/\n/g, ', ');
         }
 
         return callback(null, { author, licence });
@@ -543,7 +543,7 @@ module.exports = {
 }
 
 // // console.log(wikijs)
-// module.exports.getMediaInfo('https://upload.wikimedia.org/wikipedia/commons/1/1d/Black-Hole-devouring-a-neutron-star-artist-animation-2x.webm', (err, result) => {
+// module.exports.getMediaInfo('https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Salmonella_typhi_typhoid_fever_PHIL_2215_lores.jpg/400px-Salmonella_typhi_typhoid_fever_PHIL_2215_lores.jpg', (err, result) => {
 //   console.log(err, result);
 // })
 
