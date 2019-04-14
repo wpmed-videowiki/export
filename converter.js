@@ -175,5 +175,5 @@ function getProgressFromStdout(totalDuration, chunk, onProgress) {
 
 
 function normalizeCommandText(text) {
-  return text.replace(/\:|\'/g, '');
+  return text.replace(/\:|\'|\"/g, '');
 }
