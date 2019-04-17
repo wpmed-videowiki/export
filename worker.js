@@ -7,7 +7,7 @@ const async = require('async');
 const mongoose = require('mongoose');
 const cheerio = require('cheerio');
 
-const { imageToVideo, videoToVideo, gifToVideo ,combineVideos, slowVideoRate }  = require('./converter');
+const { imageToVideo, videoToVideo, gifToVideo ,combineVideos, slowVideoRate, wavToWebm }  = require('./converter');
 const utils = require('./utils');
 const subtitles = require('./subtitles');
 const { DEFAUL_IMAGE_URL } = require('./constants');
@@ -223,10 +223,19 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
         utils.downloadMediaFile(`https:${slide.audio}`, tempAudioFile, (err) => {
           if (!err) {
             slide.tmpAudio = tempAudioFile;
+            const audioExt = tempAudioFile.split('.').pop();
+            // If the file extension is wav, convert it to webm for consistent encoding
+            if (audioExt !== 'wav') return cb();
+            wavToWebm(slide.tmpAudio, slide.tmpAudio.replace(audioExt, 'webm'), (err, newTmpPath) => {
+              if (newTmpPath) {
+                slide.tmpAudio = newTmpPath;
+              }
+              return cb();
+            })
           } else {
             console.log('error downloading tmp audio', err);
+            return cb();
           }
-          return cb();
         })
       }
       downAudioFuncArray.push(downAudioFunc);
@@ -239,7 +248,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
 
       slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
         function convert(cb) {
-          const fileName = `videos/${slide.audio.split('/').pop().replace('.mp3', '.webm')}`
+          const fileName = `videos/${slide.audio.split('/').pop()}.webm`;
           const audioUrl = slide.tmpAudio || `https:${slide.audio}`;
           const convertCallback = (err, videoPath) => {
             if (err) {

@@ -7,6 +7,17 @@ const { generateSubtitle } = require('./subtitles');
 const FFMPEG_SCALE = '[0:v]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2';
 
 module.exports = {
+
+  wavToWebm(filePath, targetPath, callback = () => {}) {
+    exec(`ffmpeg -i ${filePath} -vn ${targetPath}`, (err, stdout, stderr) => {
+      if (err) return callback(err);
+      if (!fs.existsSync(filePath)) {
+        return callback(new Error('Something went wrong'))
+      }
+      return callback(null, targetPath);
+    })
+  },
+
   imageToVideo(image, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
     getRemoteFile(image, (err, image) => {
       if (err) return callback(err);
