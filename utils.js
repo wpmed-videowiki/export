@@ -343,7 +343,7 @@ function getReferencesImage(title, wikiSource, references, callback) {
   }
 }
 
-function getCreditsImages(title, wikiSource, extraUsers = [], callback = () => {}) {
+function getCreditsImages({ title, wikiSource, wikiRevisionId }, extraUsers = [], callback = () => {}) {
   // console.log(`${wikiSource}/w/api.php?action=query&format=json&prop=contributors&titles=${title}&redirects`)
   request.get(`${wikiSource}/w/api.php?action=query&format=json&prop=contributors&titles=${title}&redirects`, (err, data) => {
     if (err) {
@@ -365,10 +365,11 @@ function getCreditsImages(title, wikiSource, extraUsers = [], callback = () => {
       let renderContribFuncArray = [];
       let start = 1;
       const contributorsChunks = lodash.chunk(contributors, 16);
+      const usersRef = wikiRevisionId ? `${wikiSource}/w/index.php?title=${title}&oldid=${wikiRevisionId}` : `${wikiSource}/wiki/${title}`;
       contributorsChunks.forEach((chunk, index) => {
         function renderContrib(cb) {
           ejs.renderFile(path.join(__dirname, 'templates', 'users_credits.ejs'),
-            { usersChunk: lodash.chunk(chunk, 8), start, usersRef: `${wikiSource}/wiki/${title}` }, 
+            { usersChunk: lodash.chunk(chunk, 8), start, usersRef }, 
             { escape: (item) => item },
             (err, html) => {
               const imageName = path.join(__dirname, 'tmp' , `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
@@ -423,8 +424,8 @@ function generateReferencesVideos(title, wikiSource, references, { onProgress, o
 }
 
 
-function generateCreditsVideos(title, wikiSource, { extraUsers, humanvoice, user }, callback) {
-  getCreditsImages(title, wikiSource, extraUsers, (err, images) => {
+function generateCreditsVideos(article, { extraUsers, humanvoice, user }, callback) {
+  getCreditsImages(article, extraUsers, (err, images) => {
     if (err) return callback(err);
     const refFuncArray = [];
 

@@ -326,7 +326,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
         updateProgress(videoId, 100);    
         results = results.sort((a, b) => a.index - b.index);
         // Generate the user credits slides
-        utils.generateCreditsVideos(article.title, article.wikiSource, video, (err, creditsVideos) => {
+        utils.generateCreditsVideos(article, video, (err, creditsVideos) => {
           if (err) {
             console.log('error creating credits videos', err);
           }
