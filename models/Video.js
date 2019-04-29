@@ -3,6 +3,13 @@ require('mongoose-long')(mongoose)
 const Schema = mongoose.Schema
 const SchemaTypes = mongoose.Schema.Types
 
+const DerivativeSchema = new Schema({
+  fileName: { type: String, required: true },
+  author: { type: String, required: true },
+  licence: { type: String, required: true },
+  position: Number,
+})
+
 const VideoSchema = new Schema({
   title: { type: String, required: true },
   wikiSource: { type: String, required: true },
@@ -22,10 +29,14 @@ const VideoSchema = new Schema({
   ETag: String, // s3 tag id 
   lang: String,
   error: String, 
+
   withSubtitles: { type: Boolean, default: false },
   commonsSubtitles: { type: String },
   vlcSubtitles: { type: String },
   vttSubtitles: { type: String },
+
+  derivatives: [DerivativeSchema],
+
   created_at: { type: Date, default: Date.now, index: true },
   updated_at: { type: Date, default: Date.now },
 })

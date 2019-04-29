@@ -246,6 +246,8 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
         console.log('error fetching tmp medias', err);
       }
 
+      const videoDerivatives = [];
+
       slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
         function convert(cb) {
           const fileName = `videos/${slide.audio.split('/').pop()}.webm`;
@@ -290,13 +292,23 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             let subText = '';
             if (err) {
               console.log('error fetching media author and licence', err)
-            } else {
+            } else if (info){
               if (info.author) {
                 subText = `Visual Content by ${info.author}, `
               }
               if (info.licence) {
                 subText += info.licence
               }
+            }
+
+            // Collect derivatives info
+            if (info && info.author && info.licenseCode && info.fileName) {
+              videoDerivatives.push({
+                fileName: info.fileName,
+                author: info.author,
+                licence: info.licenseCode,
+                position: slide.position,
+              })
             }
             const $ = cheerio.load(`<div>${slide.text}</div>`);
             const slideText = $.text();
@@ -323,7 +335,15 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
           })
           return callback(err);
         }
-        updateProgress(videoId, 100);    
+        updateProgress(videoId, 100);
+
+        // Set video derivatives to be put in the licence info
+        VideoModel.findByIdAndUpdate(videoId, { $set: { derivatives: videoDerivatives } }, (err) => {
+          if (err) {
+            console.log('error saving video derivatives');
+          }
+        })
+
         results = results.sort((a, b) => a.index - b.index);
         // Generate the user credits slides
         utils.generateCreditsVideos(article, video, (err, creditsVideos) => {

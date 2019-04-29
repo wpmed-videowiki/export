@@ -273,7 +273,13 @@ function getMediaInfo(url, callback) {
           author = author.trim().replace('User:', '').replace(/\:/g, '').replace(/\n/g, ', ');
         }
 
-        return callback(null, { author, licence });
+        getMediaLicenseCode(url, (err, licenseCode) => {
+          if (err) {
+            console.log('error getting licence code');
+          }
+
+          return callback(null, { author, licence, licenseCode, fileName: getFileNameFromThumb(url) });
+        })
       } else {
         return callback(null, null);
       }
@@ -282,6 +288,47 @@ function getMediaInfo(url, callback) {
   }
 }
 
+
+
+function getMediaLicenseCode(url, callback) {
+  const filePageTitle = getOriginalCommonsUrl(url);
+  if (!filePageTitle) {
+    setTimeout(() => {
+      return callback(new Error(`Invalid url ${url}`), null);
+    }, 100);
+  } else {
+    const infoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=File:${filePageTitle}&redirects&prop=cirrusdoc&format=json&formatversion=2`;
+    console.log(infoUrl);
+    request.get(infoUrl, (err, res) => {
+      if (err) return callback(err);
+      let licence = '';
+      const body = JSON.parse(res.body);
+      try {
+        if (body.query && body.query.pages && body.query.pages.length > 0 ) {
+          const { cirrusdoc } = body.query.pages[0];
+          const { source_text } = cirrusdoc[0].source;
+          if (source_text) {
+            let licencePart = source_text.split(/==(\s)*{{int:license-header}}(\s)*==/i);
+            if (licencePart.length > 1) {
+              licencePart = licencePart.pop().trim().match(/{{(.+)}}/);
+              if (licencePart.length >= 2) {
+                licence = licencePart[1];
+              }
+            } else {
+              licence = '';
+            } 
+          } else {
+            return callback(new Error('No info available'));
+          }
+        }
+      } catch(e) {
+        return callback(e);
+      }
+      console.log('licence',  licence)
+      return callback(null, licence);
+    })
+  }
+}
 
 
 function getReferencesImage(title, wikiSource, references, callback) {
@@ -510,6 +557,32 @@ function convertImageToSilentVideo(image, outputPath, callback = () => {}) {
   })
 }
 
+function getFileNameFromThumb (thumbnailPath) {
+
+  if (!thumbnailPath) return null
+
+  // Check if it's a thumbnail image or not (can be a video/gif)
+  if (thumbnailPath.indexOf('thumb') > -1 ) {
+    const re = /(upload\.wikimedia\.org).*(commons\/thumb\/.*\/.*\/)/
+    const match = thumbnailPath.match(re)
+    if (match && match.length === 3) {
+      const pathParts = match[2].split('/')
+      // Remove trailing / character
+      pathParts.pop()
+      return pathParts[pathParts.length - 1];
+    }
+  } else {
+    const re = /(upload\.wikimedia\.org).*(commons\/.*\/.*)/
+    const match = thumbnailPath.match(re)
+    if (match && match.length === 3) {
+      const pathParts = match[2].split('/')
+      return pathParts[pathParts.length - 1];
+    }
+  }
+
+  return null
+}
+
 // function generateShareVideo(callback) {
 //   const videoName = `videos/refvid-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
 //   exec(`ffmpeg -loop 1 -i cc_video_share.png -c:v libvpx-vp9 -t 2 -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t 2 -pix_fmt yuv420p  -filter_complex "[0:v]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2" ${videoName}`, (err, stdout, stderr) => {
@@ -544,9 +617,9 @@ module.exports = {
 }
 
 // // console.log(wikijs)
-// module.exports.getMediaInfo('https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Salmonella_typhi_typhoid_fever_PHIL_2215_lores.jpg/400px-Salmonella_typhi_typhoid_fever_PHIL_2215_lores.jpg', (err, result) => {
-//   console.log(err, result);
-// })
+module.exports.getMediaInfo('https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Salmonella_typhi_typhoid_fever_PHIL_2215_lores.jpg/400px-Salmonella_typhi_typhoid_fever_PHIL_2215_lores.jpg', (err, result) => {
+  console.log(err, result);
+})
 
 // module.exports.getMediaInfo('https://upload.wikimedia.org/wikipedia/commons/a/ac/Katherine_Maher_Introduction_and_previous_work_experience_slide.webm', (err, result) => {
 //   console.log(err, result);
