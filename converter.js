@@ -21,18 +21,25 @@ module.exports = {
   imageToVideo(image, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
     getRemoteFile(image, (err, image) => {
       if (err) return callback(err);
-      generateSubtitle(text, audio, (err, subtitlePath) => {
-        if (err) return callback(err);
-        exec(`ffmpeg -y -thread_queue_size 10000 -framerate 25 -loop 1 -i ${image} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? "" : `[outv];[outv]subtitles=${subtitlePath}:force_style='${subtext ? "MarginV=45'" : "'"}` }${!subtext ? "" : `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p`}" -shortest ${outputPath}`, (err, stdout, stderr) => {
-          fs.unlink(image, () => {});
-          fs.unlink(subtitlePath, () => {});
-          if (err) {
-            return callback(err);
-          }
-          return callback(null, outputPath)
+      getRemoteFileDuration(audio, (err, audioDuration) => {
+        let audioTrim = '';
+        if (err || !audioDuration) {
+          console.log('error getting audio duration', err);
+        } else {
+          audioTrim = `-t ${audioDuration}`;
+        }
+        generateSubtitle(text, audio, (err, subtitlePath) => {
+          if (err) return callback(err);
+          exec(`ffmpeg -y -thread_queue_size 10000 -framerate 25 -loop 1 -i ${image} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? "" : `[outv];[outv]subtitles=${subtitlePath}:force_style='${subtext ? "MarginV=45'" : "'"}` }${!subtext ? "" : `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p`}" -shortest ${audioTrim} ${outputPath}`, (err, stdout, stderr) => {
+            fs.unlink(image, () => {});
+            fs.unlink(subtitlePath, () => {});
+            if (err) {
+              return callback(err);
+            }
+            return callback(null, outputPath)
+          })
         })
       })
-      
     })
   },
   videoToVideo(video, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
@@ -188,3 +195,7 @@ function getProgressFromStdout(totalDuration, chunk, onProgress) {
 function normalizeCommandText(text) {
   return text.replace(/\:|\'|\"/g, '');
 }
+
+// getRemoteFileDuration('https://dnv8xrxt73v5u.cloudfront.net/bbedc689-1971-40d6-959d-95757c7d319e.mp3', (err, duration) => {
+//   console.log(err, duration)
+// })

@@ -617,9 +617,9 @@ module.exports = {
 }
 
 // // console.log(wikijs)
-module.exports.getMediaInfo('https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Salmonella_typhi_typhoid_fever_PHIL_2215_lores.jpg/400px-Salmonella_typhi_typhoid_fever_PHIL_2215_lores.jpg', (err, result) => {
-  console.log(err, result);
-})
+// module.exports.getMediaInfo('https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Salmonella_typhi_typhoid_fever_PHIL_2215_lores.jpg/400px-Salmonella_typhi_typhoid_fever_PHIL_2215_lores.jpg', (err, result) => {
+//   console.log(err, result);
+// })
 
 // module.exports.getMediaInfo('https://upload.wikimedia.org/wikipedia/commons/a/ac/Katherine_Maher_Introduction_and_previous_work_experience_slide.webm', (err, result) => {
 //   console.log(err, result);
