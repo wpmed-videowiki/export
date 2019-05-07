@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "stop": "node_modules/pm2/bin/pm2 kill --name=videowiki_converter",
+    "restart": "node_modules/pm2/bin/pm2 reload all",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
