@@ -10,7 +10,7 @@ const cheerio = require('cheerio');
 const { imageToVideo, videoToVideo, gifToVideo ,combineVideos, slowVideoRate, wavToWebm }  = require('./converter');
 const utils = require('./utils');
 const subtitles = require('./subtitles');
-const { DEFAUL_IMAGE_URL } = require('./constants');
+const { DEFAUL_IMAGE_URL, SLIDE_CONVERT_PER_TIME } = require('./constants');
 
 const UserModel = require('./models/User');
 const ArticleModel = require('./models/Article');
@@ -201,6 +201,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
 
       utils.checkMediaFileExists(slide.media, (err, valid) => {
         if (err || !valid) {
+          console.log(err, valid);
           slide.media = DEFAUL_IMAGE_URL;
           slide.mediaType = 'image';
         }
@@ -313,7 +314,11 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             const $ = cheerio.load(`<div>${slide.text}</div>`);
             const slideText = $.text();
             
-            const slideMediaUrl = slide.media;
+            let slideMediaUrl = slide.media;
+            // Use 800px thumbnail size instead of 400px for better image quality
+            if (slideMediaUrl.indexOf('400px-') !== -1) {
+              slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
+            }
             if (utils.getFileType(slide.media) === 'image') {
               imageToVideo(slideMediaUrl, audioUrl, slideText, subText, false, fileName, convertCallback);
             } else if (utils.getFileType(slide.media) === 'video') {
@@ -329,7 +334,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
         convertFuncArray.push(convert);
       })
       
-      async.parallelLimit(convertFuncArray, 2, (err, results) => {
+      async.parallelLimit(convertFuncArray, SLIDE_CONVERT_PER_TIME, (err, results) => {
         if (err) {
           VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
           })
