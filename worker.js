@@ -200,7 +200,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
       }
 
       utils.checkMediaFileExists(slide.media, (err, valid) => {
-        if (err || !valid) {
+      if (err || !valid) {
           console.log(err, valid);
           slide.media = DEFAUL_IMAGE_URL;
           slide.mediaType = 'image';
@@ -251,7 +251,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
 
       slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
         function convert(cb) {
-          const fileName = `videos/${slide.audio.split('/').pop()}.webm`;
+          const fileName = `videos/video-${parseInt(Date.now() + Math.random() * 100000)}.webm`;
           const audioUrl = slide.tmpAudio || `https:${slide.audio}`;
           const convertCallback = (err, videoPath) => {
             if (err) {
