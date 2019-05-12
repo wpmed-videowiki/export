@@ -30,7 +30,9 @@ module.exports = {
         }
         generateSubtitle(text, audio, (err, subtitlePath) => {
           if (err) return callback(err);
-          exec(`ffmpeg -y -thread_queue_size 10000 -framerate 25 -loop 1 -i ${image} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? "" : `[outv];[outv]subtitles=${subtitlePath}:force_style='${subtext ? "MarginV=45'" : "'"}` }${!subtext ? "" : `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p`}" -shortest ${audioTrim} ${outputPath}`, (err, stdout, stderr) => {
+          const shuldOverlayWhiteBackground = true;
+
+          exec(`ffmpeg -y -thread_queue_size 10000 -framerate 25 -loop 1 -i ${image} ${!shuldOverlayWhiteBackground ? '' : `-f lavfi -i color=c=white:s=800x600`} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "${FFMPEG_SCALE}${!shuldOverlayWhiteBackground ? '' : `[outv];[1:v][outv]overlay=1,format=yuv444p[outv];[outv]setsar=1:1,setdar=16:9`}${!withSubtitles ? "" : `[outv];[outv]subtitles=${subtitlePath}:force_style='${subtext ? "MarginV=45'" : "'"}` }${!subtext ? "" : `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p`}" -shortest ${audioTrim} ${outputPath}`, (err, stdout, stderr) => {
             fs.unlink(image, () => {});
             fs.unlink(subtitlePath, () => {});
             if (err) {

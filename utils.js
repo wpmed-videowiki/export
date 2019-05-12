@@ -522,7 +522,6 @@ function generateCreditsVideos(article, { extraUsers, humanvoice, user }, callba
 
 function checkMediaFileExists(fileUrl, callback = () => {}) {
   request.get(fileUrl, (err, res) => {
-    console.log(err,)
     if (err) return callback(err);
     if (res && res.statusCode !== 200) return callback(new Error('Invalid file'));
     return callback(null, true);
