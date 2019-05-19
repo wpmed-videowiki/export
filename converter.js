@@ -4,6 +4,7 @@ const { exec } = require('child_process');
 const async = require('async');
 const { getRemoteFile, getRemoteFileDuration, getFilesDuration, getVideoFramerate, getVideoDimentions } = require('./utils')
 const { generateSubtitle } = require('./subtitles');
+const commandBuilder = require('./commandBuilder');
 
 const FFMPEG_SCALE = '[0:v]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2';
 
@@ -31,9 +32,9 @@ module.exports = {
         }
         generateSubtitle(text, audio, (err, subtitlePath) => {
           if (err) return callback(err);
-          const shuldOverlayWhiteBackground = true;
-
-          exec(`ffmpeg -y -thread_queue_size 512 -framerate 25 -loop 1 -i ${image} ${!shuldOverlayWhiteBackground ? '' : `-f lavfi -i color=c=white:s=800x600`} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "${FFMPEG_SCALE}${!shuldOverlayWhiteBackground ? '' : `[outv];[1:v][outv]overlay=1,format=yuv444p[outv];[outv]setsar=1:1,setdar=16:9`}${!withSubtitles ? "" : `[outv];[outv]subtitles=${subtitlePath}:force_style='${subtext ? "MarginV=45'" : "'"}` }${!subtext ? "" : `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p`}" -shortest ${audioTrim} ${outputPath}`, (err, stdout, stderr) => {
+          const shouldOverlayWhiteBackground = true;
+          const command = commandBuilder.generateImageToVideoCommand({ imagePath: image, audio, shouldOverlayWhiteBackground, subtext, audioTrim, outputPath });
+          exec(command, (err, stdout, stderr) => {
             fs.unlink(image, () => {});
             fs.unlink(subtitlePath, () => {});
             if (err) {
@@ -72,14 +73,16 @@ module.exports = {
               return cb(null, tmpVidPath);
             })
           } else {
-            return cb(null, video);
+            setTimeout(() => {
+              return cb(null, video);
+            });
           }
         })
 
-        // If the video duration is larger than the audio duration, we take only the first amount of seconds from the video to match the audio
+        // If the audio duration is smaller than the audio duration, we take only the first amount of seconds from the video to match the audio
         if (audioDuration <= videoDuration) {
           updateFuncArray.push((videoPath, cb) => {
-            command = `ffmpeg -y -t ${audioDuration} -i ${videoPath} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -map 0:v:0 -map 1:a:0 -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? '' : `[outv];[outv]subtitles=${subtitlePath}:force_style='${subtext ? "MarginV=45'" : "'"}` }${!subtext ? "" : `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p`}" -shortest ${outputPath}`;
+            command = commandBuilder.generateVideoToVideoCommand({ videoPath, audio, audioDuration, videoDuration, subtext, outputPath });
        
             exec(command, {shell: '/bin/bash'}, (err, stdout, stderr) => {
               fs.unlink(subtitlePath, () => {});            
@@ -105,7 +108,7 @@ module.exports = {
               })
             },
             (videoPath, frameRate, videoDimentions, cb) => {
-              command = `ffmpeg -y -f lavfi -i color=s=${videoDimentions}:d=${audioDuration}:r=${frameRate}:c=0xFFE4C4@0.0 -i ${videoPath} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "[0:v][1:v]overlay[outv];[outv]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2[outv]${!withSubtitles ? '' : `;[outv]subtitles=${subtitlePath}:force_style='${subtext ? "MarginV=45'" : "'[outv]"}` }${!subtext ? "" : `${withSubtitles ? '[outv]': '' };[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p[outv]`}" -map "[outv]" -map 2:a -shortest ${outputPath}`;
+              command = commandBuilder.generateVideoToVideoCommand({ videoPath, audio, audioDuration, videoDuration, subtext, outputPath, videoDimentions, frameRate });
               exec(command, {shell: '/bin/bash'}, (err, stdout, stderr) => {
                 fs.unlink(subtitlePath, () => {});
                 if (err) {
@@ -136,7 +139,7 @@ module.exports = {
       generateSubtitle(text, audio, (err, subtitlePath) => {
         if (err) return callback(err);
 
-        const command = `ffmpeg -y -ignore_loop 0 -t ${duration} -i ${gif} -i ${audio} -filter_complex "${FFMPEG_SCALE}${!withSubtitles ? '' : `[outv];[outv]subtitles=${subtitlePath}:force_style='${subtext ? "MarginV=45'" : "'"}` }${!subtext ? "" : `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p`}" -shortest -strict -2 -c:v libvpx-vp9 -c:a libvorbis -threads 4 -pix_fmt yuv420p -shortest ${outputPath}`;
+        const command = commandBuilder.generateGifToVideoCommand({ gifPath: gif, audio, duration, subtext, outputPath });
         exec(command, (err, stdout, stderr) => {
           fs.unlink(subtitlePath, () => {});
           if (err) {
