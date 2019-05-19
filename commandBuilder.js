@@ -33,8 +33,8 @@ module.exports = {
     }
     return command;
   },
-  generateGifToVideoCommand({ gifPath, duration, audio, subtext, outputPath}) {
-    let command = `ffmpeg -y -ignore_loop 0 -t ${duration} -i ${gifPath} -i ${audio} -filter_complex "${FFMPEG_SCALE}`;
+  generateGifToVideoCommand({ gifPath, audioDuration, audio, subtext, outputPath}) {
+    let command = `ffmpeg -y -ignore_loop 0 -t ${audioDuration} -i ${gifPath} -i ${audio} -filter_complex "${FFMPEG_SCALE}`;
     if (subtext) {
       command += ` [outv];[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p`
     }

@@ -7,10 +7,10 @@ const async = require('async');
 const mongoose = require('mongoose');
 const cheerio = require('cheerio');
 
-const { imageToVideo, videoToVideo, gifToVideo ,combineVideos, slowVideoRate, wavToWebm }  = require('./converter');
+const { imageToVideo, videoToVideo, gifToVideo ,combineVideos, slowVideoRate, wavToWebm, addFadeEffects }  = require('./converter');
 const utils = require('./utils');
 const subtitles = require('./subtitles');
-const { DEFAUL_IMAGE_URL, SLIDE_CONVERT_PER_TIME } = require('./constants');
+const { DEFAUL_IMAGE_URL, SLIDE_CONVERT_PER_TIME, FADE_EFFECT_DURATION } = require('./constants');
 
 const UserModel = require('./models/User');
 const ArticleModel = require('./models/Article');
@@ -208,9 +208,9 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
         return cb();
       })
     }
-    verifySlidesMediaFuncArray.push(verifyMedia);
+    // verifySlidesMediaFuncArray.push(verifyMedia);
   })
-
+  console.log('verifying media');
   async.parallelLimit(async.reflectAll(verifySlidesMediaFuncArray), 2, (err, result) => {
     if (err) {
       console.log('error verifying slides media');
@@ -241,7 +241,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
       }
       downAudioFuncArray.push(downAudioFunc);
     })
-    
+    console.log('downloading audios');
     async.parallelLimit(async.reflectAll(downAudioFuncArray), 2, (err, value) => {
       if (err) {
         console.log('error fetching tmp medias', err);
@@ -262,24 +262,50 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             if (slide.tmpAudio) {
               fs.unlink(slide.tmpAudio, () => {});
             }
-
-            slowVideoRate(videoPath, {
-              onEnd: (err, slowedVideoPath) => {
-                if (err || !fs.existsSync(slowedVideoPath)) {
-                  slide.video = videoPath;
-                } else {
-                  slide.video = slowedVideoPath;
-                  fs.unlink(videoPath, () => {});
-                }
-                progress += (1 / article.slides.length) * 100;
-                updateProgress(videoId, progress);
-                
-                console.log(`Progress ####### ${progress} ######`)
-                return cb(null, {
-                  fileName: slide.video,
-                  index
-                });
+            const finalizeSlideFunc = [];
+            slide.video = videoPath;
+            utils.getRemoteFileDuration(videoPath, (err, duration) => {
+              // Add fade effect only to slides having at least 2 seconds of content
+              console.log('remote file duration', Math.floor(duration))
+              if (!err && Math.floor(duration) > 2) {
+                finalizeSlideFunc.push((finalizeSlideCB) => {
+                  addFadeEffects(videoPath, FADE_EFFECT_DURATION, (err, fadedVideo) => {
+                    if (err) {
+                      console.log('error adding fade effects', err);
+                      slide.video = videoPath;
+                    } else if (fadedVideo && fs.existsSync(fadedVideo)) {
+                      fs.unlinkSync(videoPath);
+                      slide.video = fadedVideo;
+                    }
+                    finalizeSlideCB();
+                  })
+                })
               }
+              finalizeSlideFunc.push((finalizeSlideCB) => {
+                slowVideoRate(slide.video, {
+                  onEnd: (err, slowedVideoPath) => {
+                    console.log('slow done')
+                    const oldPath = slide.video;
+                    if (err || !fs.existsSync(slowedVideoPath)) {
+                      // slide.video = videoPath;
+                    } else {
+                      fs.unlinkSync(oldPath);
+                      slide.video = slowedVideoPath;
+                    }
+                  
+                    progress += (1 / article.slides.length) * 100;
+                    updateProgress(videoId, progress);
+                    
+                    console.log(`Progress ####### ${progress} ######`);
+                    finalizeSlideCB();
+                    return cb(null, {
+                      fileName: slide.video,
+                      index
+                    });
+                  }
+                })
+              })
+              async.series(finalizeSlideFunc, () => {});
             })
           }
           // End convert callback
@@ -368,7 +394,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
               // Considere progress done
               VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: 100 }}, (err, result) => {
               })
-              
+
               if (err) {
                 console.log('error creating references videos', err);
               }

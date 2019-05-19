@@ -104,6 +104,16 @@ function getRemoteFileDuration(url, callback) {
   })
 }
 
+function getVideoNumberOfFrames(url, callback) {
+  getRemoteFileDuration(url, (err, duration) => {
+    if (err) return callback(err);
+    getVideoFramerate(url, (err, frameRate) => {
+      if (err) return callback(err);
+      return callback(null, { frames: Math.ceil(duration * frameRate), frameRate, duration });
+    })
+  })
+}
+
 function downloadMediaFile(url, destination, callback = () => {}) {
   exec(`ffmpeg -y -i ${url} -vcodec copy -acodec copy ${destination}`, (err, stdout, stderr) => {
     if (err) {
@@ -613,6 +623,7 @@ module.exports = {
   checkMediaFileExists,
   uploadSubtitlesToS3,
   deleteVideoFromS3,
+  getVideoNumberOfFrames,
 }
 
 // // console.log(wikijs)

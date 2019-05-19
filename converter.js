@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const async = require('async');
-const { getRemoteFile, getRemoteFileDuration, getFilesDuration, getVideoFramerate, getVideoDimentions } = require('./utils')
+const { getRemoteFile, getRemoteFileDuration, getFilesDuration, getVideoFramerate, getVideoDimentions, getVideoNumberOfFrames } = require('./utils')
 const { generateSubtitle } = require('./subtitles');
 const commandBuilder = require('./commandBuilder');
 
@@ -33,7 +33,7 @@ module.exports = {
         generateSubtitle(text, audio, (err, subtitlePath) => {
           if (err) return callback(err);
           const shouldOverlayWhiteBackground = true;
-          const command = commandBuilder.generateImageToVideoCommand({ imagePath: image, audio, shouldOverlayWhiteBackground, subtext, audioTrim, outputPath });
+          const command = commandBuilder.generateImageToVideoCommand({ imagePath: image, audio, audioDuration, shouldOverlayWhiteBackground, subtext, audioTrim, outputPath });
           exec(command, (err, stdout, stderr) => {
             fs.unlink(image, () => {});
             fs.unlink(subtitlePath, () => {});
@@ -132,14 +132,14 @@ module.exports = {
   },
 
   gifToVideo(gif, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
-    getRemoteFileDuration(audio, (err, duration) => {
+    getRemoteFileDuration(audio, (err, audioDuration) => {
       if (err) {
         return callback(err);
       }
       generateSubtitle(text, audio, (err, subtitlePath) => {
         if (err) return callback(err);
 
-        const command = commandBuilder.generateGifToVideoCommand({ gifPath: gif, audio, duration, subtext, outputPath });
+        const command = commandBuilder.generateGifToVideoCommand({ gifPath: gif, audio, audioDuration, subtext, outputPath });
         exec(command, (err, stdout, stderr) => {
           fs.unlink(subtitlePath, () => {});
           if (err) {
@@ -149,6 +149,23 @@ module.exports = {
         })
       })
       
+    })
+  },
+
+  addFadeEffects(video, fadeDuration = 0.5, callback = () => {}) {
+    // Fade duration is in seconds
+    const fadedPath = path.join(__dirname, 'tmp', `faded-${ parseInt(Date.now() + Math.random() * 100000)}-fade.webm`);
+    getVideoNumberOfFrames(video, (err, framesInfo) => {
+      console.log('frames info', framesInfo)
+      if (err) return callback(err);
+      if (!framesInfo) return callback(new Error('Something went wrong getting number of frames'));
+      const command = `ffmpeg -i ${video} -vf 'fade=in:0:${Math.ceil(framesInfo.frameRate * fadeDuration)},fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
+      // const command = `ffmpeg -y -i ${video} -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
+      console.log(command);
+      exec(command, (err) => {
+        if (err) return callback(err);
+        return callback(null, fadedPath);
+      })
     })
   },
 
