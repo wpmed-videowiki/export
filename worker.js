@@ -208,7 +208,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
         return cb();
       })
     }
-    // verifySlidesMediaFuncArray.push(verifyMedia);
+    verifySlidesMediaFuncArray.push(verifyMedia);
   })
   console.log('verifying media');
   async.parallelLimit(async.reflectAll(verifySlidesMediaFuncArray), 2, (err, result) => {
