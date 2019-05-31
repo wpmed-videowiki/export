@@ -17,6 +17,7 @@ const REGION = 'eu-west-1';
 const IMAGE_EXTENSIONS = ['jpeg', 'jpg', 'png', 'svg', 'tif', 'tiff', 'webp', 'jif', 'jfif', 'jp2','jpx','j2k', 'j2c', 'fpx', 'pcd'];
 const VIDEOS_EXTESION = ['webm', 'mp4', 'ogg', 'ogv'];
 const GIF_EXTESIONS = ['gif'];
+const { FFMPEG_SCALE } = require('./constants');
 
 const s3 = new AWS.S3({
   signatureVersion: 'v4',
@@ -460,7 +461,7 @@ function generateReferencesVideos(title, wikiSource, references, { onProgress, o
     images.forEach((image, index) => {
       function refVid(cb) {
         const videoName = `videos/refvid-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
-        convertImageToSilentVideo(image.image, videoName, (err) => {
+        convertImageToSilentVideo(image.image, 2, false, videoName, (err) => {
           fs.unlink(image.image, () => {});
           doneCount ++;
           onProgress(doneCount / images.length * 100);
@@ -490,7 +491,7 @@ function generateCreditsVideos(article, { extraUsers, humanvoice, user }, callba
       images.forEach((image, index) => {
         function refVid(cb) {
           const videoName = `videos/refvid-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
-          convertImageToSilentVideo(image.image, videoName, (err) => {
+          convertImageToSilentVideo(image.image, 2, false, videoName, (err) => {
             fs.unlink(image.image, () => {})
             if (err) {
               return cb(err);
@@ -510,7 +511,7 @@ function generateCreditsVideos(article, { extraUsers, humanvoice, user }, callba
             return cb(err)
           }
           const videoName = path.join(__dirname, 'tmp' , `video-audio-by-${Date.now()}${parseInt(Math.random() * 10000)}.webm`);
-          convertImageToSilentVideo(imageInfo.image, videoName, (err) => {
+          convertImageToSilentVideo(imageInfo.image, 2, false, videoName, (err) => {
             fs.unlink(imageInfo.image, () => {});
             if (err) {
               return cb(err);
@@ -554,8 +555,41 @@ function generateAudioByImage(username, callback) {
   });
 }
 
-function convertImageToSilentVideo(image, outputPath, callback = () => {}) {
-  exec(`ffmpeg -loop 1 -i ${image} -c:v libvpx-vp9 -t 2 -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t 2 -pix_fmt yuv420p  -filter_complex "[0:v]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2" ${outputPath}`, (err, stdout, stderr) => {
+function convertImageToSilentVideo(image, duration, shouldOverlayWhiteBackground, outputPath, callback = () => {}) {
+  let command = `ffmpeg -loop 1 -i ${image}`
+  if (shouldOverlayWhiteBackground) {
+    command += ` -f lavfi -i color=c=white:s=800x600`;
+  }
+  command += ` -c:v libvpx-vp9 -t ${duration} -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t ${duration} -pix_fmt yuv420p  -filter_complex "${FFMPEG_SCALE}`;
+  if (shouldOverlayWhiteBackground) {
+    command += `[outv];[1:v][outv]overlay=1,format=yuv444p[outv];[outv]setsar=1:1,setdar=16:9`;
+  }
+  command += `" ${outputPath}`;
+  exec(command, (err, stdout, stderr) => {
+    if (err) {
+      return callback(err);
+    }
+    if (!fs.existsSync(outputPath)) {
+      return callback(new Error('Something went wrong'));
+    }
+    return callback(null, outputPath);
+  })
+}
+
+function convertGIFToSilentVideo(image, duration, outputPath, callback = () => {}) {
+  exec(`ffmpeg -loop 1 -i ${image} -c:v libvpx-vp9 -t ${duration} -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t 2 -pix_fmt yuv420p  -filter_complex "${FFMPEG_SCALE}" ${outputPath}`, (err, stdout, stderr) => {
+    if (err) {
+      return callback(err);
+    }
+    if (!fs.existsSync(outputPath)) {
+      return callback(new Error('Something went wrong'));
+    }
+    return callback(null, outputPath);
+  })
+}
+
+function trimVideo(video, duration, outputPath, callback) {
+  exec(`ffmpeg -t ${duration} -i ${video} -c:v libvpx-vp9 -pix_fmt yuv420p  -filter_complex "${FFMPEG_SCALE}" ${outputPath}`, (err, stdout, stderr) => {
     if (err) {
       return callback(err);
     }
@@ -624,6 +658,9 @@ module.exports = {
   uploadSubtitlesToS3,
   deleteVideoFromS3,
   getVideoNumberOfFrames,
+  convertImageToSilentVideo,
+  convertGIFToSilentVideo,
+  trimVideo,
 }
 
 // // console.log(wikijs)

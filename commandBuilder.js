@@ -1,4 +1,4 @@
-const FFMPEG_SCALE = '[0:v]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2';
+const { FFMPEG_SCALE } = require('./constants');
 
 module.exports = {
   generateImageToVideoCommand({ imagePath, audio, shouldOverlayWhiteBackground, subtext, audioTrim, outputPath }) {

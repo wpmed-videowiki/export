@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const async = require('async');
-const { getRemoteFile, getRemoteFileDuration, getFilesDuration, getVideoFramerate, getVideoDimentions, getVideoNumberOfFrames } = require('./utils')
+const { getRemoteFile, getRemoteFileDuration, getFilesDuration, getVideoFramerate, getVideoDimentions, getVideoNumberOfFrames, getFileType, trimVideo, silent } = require('./utils')
 const { generateSubtitle } = require('./subtitles');
 const commandBuilder = require('./commandBuilder');
 
@@ -169,7 +169,54 @@ module.exports = {
     })
   },
 
-  combineVideos(videos, { onProgress, onEnd }) {
+  convertMedia(medias, callback = () => {}) {
+    /*
+      Convert steps:
+      1- convert single images/videos into silent videos
+      2- combine them together
+      3- add audio layer
+    */
+   const convertFuncArray = [];
+    medias.forEach((media, index) => {
+      const fileType = utils.getFileType(media.url);
+      const videoName = `videos/submedia-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
+      switch (fileType) {
+        case 'video':
+          convertFuncArray.push(function(cb) {
+            trimVideo(media.url, media.time, videoName, (err, outputPath) => {
+              if (err) return cb(err);
+              return cb(null, { video: outputPath, index });
+            });
+          });
+          break;
+        default:
+          convertFuncArray.push(function(cb) {
+            convertImageToSilentVideo(media.url, media.time, true, videoName, (err, outputPath) => {
+              if (err) return cb(err);
+              return cb(null, { video: outputPath, index });
+            });
+          });
+          break;
+      }
+    })
+
+    async.parallelLimit(convertFuncArray, 5, (err, results) => {
+      if (err) return callback(err);
+      console.log(results);
+      const videos = results.sort((a, b) => a.index - b.index).map(v => ({ ...v, fileName: v.video }));
+      combineVideos(videos, {
+        onEnd(err, videoPath) {
+          // Cleanup
+          videos.forEach((v) => fs.unlink(v.fileName, () => {}));
+          if (err) return callback(err);
+
+          return callback(null, videoPath);
+        }
+      })
+    })
+  },
+
+  combineVideos(videos, { onProgress = () => {}, onEnd = () => {} }) {
     const listName = parseInt(Date.now() + Math.random() * 100000);
     const videoPath = `videos/${listName}.webm`;
     fs.writeFile(`./${listName}.txt`, videos.map((video, index) => `file '${video.fileName}'`).join('\n'), (err, content) => {
@@ -190,7 +237,7 @@ module.exports = {
         }
         exec(`ffmpeg ${fileNames} \
         -filter_complex "${filterComplex}concat=n=${videos.length}:v=1:a=1[outv][outa]" \
-        -map "[outv]" -map "[outa]" ${videoPath}`, (err, stdout, stderr) => {
+        -map "[outv]" -map "[outa]" -crf 23 ${videoPath}`, (err, stdout, stderr) => {
           if (err) {
             onEnd(err);
           } else {
