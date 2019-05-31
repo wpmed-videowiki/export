@@ -29,7 +29,7 @@ module.exports = {
       if (subtext) {
         command += `;[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p[outv]`;
       }
-      command += ` -map "[outv]" -map 2:a -shortest ${outputPath}`;
+      command += `" -map "[outv]" -map 2:a -shortest ${outputPath}`;
     }
     return command;
   },
