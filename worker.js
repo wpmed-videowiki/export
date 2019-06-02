@@ -7,7 +7,7 @@ const async = require('async');
 const mongoose = require('mongoose');
 const cheerio = require('cheerio');
 
-const { imageToVideo, videoToVideo, gifToVideo ,combineVideos, slowVideoRate, wavToWebm, addFadeEffects }  = require('./converter');
+const { imageToSilentVideo, videoToSilentVideo, gifToSilentVideo ,combineVideos, slowVideoRate, wavToWebm, addFadeEffects, addAudioToVideo }  = require('./converter');
 const utils = require('./utils');
 const subtitles = require('./subtitles');
 const { DEFAUL_IMAGE_URL, SLIDE_CONVERT_PER_TIME, FADE_EFFECT_DURATION } = require('./constants');
@@ -192,23 +192,37 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
     })
   }
   slidesHtml.forEach(slide => {
-    function verifyMedia(cb) {
-      if (!slide.media) {
-        slide.media = DEFAUL_IMAGE_URL;
-        slide.mediaType = 'image';
-        return cb();
-      }
-
-      utils.checkMediaFileExists(slide.media, (err, valid) => {
-      if (err || !valid) {
-          console.log(err, valid);
-          slide.media = DEFAUL_IMAGE_URL;
-          slide.mediaType = 'image';
+    if (!slide.media || slide.media.length === 0) {
+      slide.media = [{
+        url: DEFAUL_IMAGE_URL,
+        type: 'image',
+      }];
+    } else {
+      slide.media.forEach((mitem) => {
+        function verifyMedia(cb) {
+          if (!mitem.url) {
+            mitem.url = DEFAUL_IMAGE_URL;
+            mitem.type = 'image';
+            return cb();
+          }
+    
+          utils.checkMediaFileExists(mitem.url, (err, valid) => {
+            if (err || !valid) {
+                console.log(err, valid);
+                mitem.url = DEFAUL_IMAGE_URL;
+                mitem.type = 'image';
+              }
+              const tmpMediaName = path.join(__dirname, 'tmp', `downTmpMedia-${Date.now()}-${parseInt(Math.random() * 10000)}.${mitem.url.split('.').pop()}`);
+              utils.downloadMediaFile(mitem.url, tmpMediaName, (err) => {
+                if (err) return cb();
+                mitem.tmpUrl = tmpMediaName;
+                return cb();
+              })
+          })
         }
-        return cb();
+        verifySlidesMediaFuncArray.push(verifyMedia);
       })
     }
-    verifySlidesMediaFuncArray.push(verifyMedia);
   })
   console.log('verifying media');
   async.parallelLimit(async.reflectAll(verifySlidesMediaFuncArray), 2, (err, result) => {
@@ -221,13 +235,14 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
     slidesHtml.forEach((slide) => {
       function downAudioFunc(cb) {
         const tempAudioFile = path.join(__dirname, 'tmp', `downTmpAudio-${Date.now()}-${slide.audio.split('/').pop()}`);
-        utils.downloadMediaFile(`https:${slide.audio}`, tempAudioFile, (err) => {
+        const audioUrl = slide.audio.indexOf('http') === -1 ? `https:${slide.audio}` : slide.audio;
+        utils.downloadMediaFile(audioUrl, tempAudioFile, (err) => {
           if (!err) {
             slide.tmpAudio = tempAudioFile;
             const audioExt = tempAudioFile.split('.').pop();
             // If the file extension is wav, convert it to webm for consistent encoding
             if (audioExt !== 'wav') return cb();
-            wavToWebm(slide.tmpAudio, slide.tmpAudio.replace(audioExt, 'webm'), (err, newTmpPath) => {
+            wavToWebm(slide.tmpAudio, `${slide.tmpAudio}.webm`, (err, newTmpPath) => {
               if (newTmpPath) {
                 slide.tmpAudio = newTmpPath;
               }
@@ -251,9 +266,8 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
 
       slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
         function convert(cb) {
-          const fileName = `videos/video-${parseInt(Date.now() + Math.random() * 100000)}.webm`;
           const audioUrl = slide.tmpAudio || `https:${slide.audio}`;
-          const convertCallback = (err, videoPath) => {
+          const convertCallback = (err, result) => {
             if (err) {
               console.log('error in async ', err);
               return cb(err);
@@ -262,11 +276,14 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             if (slide.tmpAudio) {
               fs.unlink(slide.tmpAudio, () => {});
             }
+            let { videoPath, videoDerivative } = result;
+            if (videoDerivative) {
+              videoDerivatives.push(videoDerivative)
+            }
             const finalizeSlideFunc = [];
             slide.video = videoPath;
             utils.getRemoteFileDuration(videoPath, (err, duration) => {
               // Add fade effect only to slides having at least 2 seconds of content
-              console.log('remote file duration', Math.floor(duration))
               if (!err && Math.floor(duration) > 2) {
                 finalizeSlideFunc.push((finalizeSlideCB) => {
                   addFadeEffects(videoPath, FADE_EFFECT_DURATION, (err, fadedVideo) => {
@@ -282,28 +299,37 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                 })
               }
               finalizeSlideFunc.push((finalizeSlideCB) => {
-                slowVideoRate(slide.video, {
-                  onEnd: (err, slowedVideoPath) => {
-                    console.log('slow done')
-                    const oldPath = slide.video;
-                    if (err || !fs.existsSync(slowedVideoPath)) {
-                      // slide.video = videoPath;
-                    } else {
-                      fs.unlinkSync(oldPath);
-                      slide.video = slowedVideoPath;
-                    }
+                progress += (1 / article.slides.length) * 100;
+                updateProgress(videoId, progress);
+                
+                console.log(`Progress ####### ${progress} ######`);
+                finalizeSlideCB();
+                return cb(null, {
+                  fileName: slide.video,
+                  index
+                });
+                // slowVideoRate(slide.video, {
+                //   onEnd: (err, slowedVideoPath) => {
+                //     console.log('slow done')
+                //     const oldPath = slide.video;
+                //     if (err || !fs.existsSync(slowedVideoPath)) {
+                //       // slide.video = videoPath;
+                //     } else {
+                //       fs.unlinkSync(oldPath);
+                //       slide.video = slowedVideoPath;
+                //     }
                   
-                    progress += (1 / article.slides.length) * 100;
-                    updateProgress(videoId, progress);
+                //     progress += (1 / article.slides.length) * 100;
+                //     updateProgress(videoId, progress);
                     
-                    console.log(`Progress ####### ${progress} ######`);
-                    finalizeSlideCB();
-                    return cb(null, {
-                      fileName: slide.video,
-                      index
-                    });
-                  }
-                })
+                //     console.log(`Progress ####### ${progress} ######`);
+                //     finalizeSlideCB();
+                //     return cb(null, {
+                //       fileName: slide.video,
+                //       index
+                //     });
+                //   }
+                // })
               })
               async.series(finalizeSlideFunc, () => {});
             })
@@ -311,50 +337,12 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
           // End convert callback
           
           if (!slide.media) {
-            slide.media = DEFAUL_IMAGE_URL;
-            slide.mediaType = 'image';
+            slide.media = [{
+              url: DEFAUL_IMAGE_URL,
+              type: 'image',
+            }];
           }
-
-          utils.getMediaInfo(slide.media, (err, info) => {
-            let subText = '';
-            if (err) {
-              console.log('error fetching media author and licence', err)
-            } else if (info){
-              if (info.author) {
-                subText = `Visual Content by ${info.author}, `
-              }
-              if (info.licence) {
-                subText += info.licence
-              }
-            }
-
-            // Collect derivatives info
-            if (info && info.author && info.licenseCode && info.fileName) {
-              videoDerivatives.push({
-                fileName: info.fileName,
-                author: info.author,
-                licence: info.licenseCode,
-                position: slide.position,
-              })
-            }
-            const $ = cheerio.load(`<div>${slide.text}</div>`);
-            const slideText = $.text();
-            
-            let slideMediaUrl = slide.media;
-            // Use 800px thumbnail size instead of 400px for better image quality
-            if (slideMediaUrl.indexOf('400px-') !== -1) {
-              slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
-            }
-            if (utils.getFileType(slide.media) === 'image') {
-              imageToVideo(slideMediaUrl, audioUrl, slideText, subText, false, fileName, convertCallback);
-            } else if (utils.getFileType(slide.media) === 'video') {
-              videoToVideo(slideMediaUrl, audioUrl, slideText, subText, false, fileName, convertCallback);
-            } else if (utils.getFileType(slide.media) === 'gif') {
-              gifToVideo(slideMediaUrl, audioUrl, slideText, subText, false, fileName, convertCallback);
-            } else {
-              return cb(new Error('Invalid file type'));
-            }
-          })
+          convertMedias(slide.media, audioUrl, slide.position, convertCallback);
         }
         
         convertFuncArray.push(convert);
@@ -478,6 +466,85 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   })
 }
 
+function convertMedias(medias, audio, slidePosition, callback = () => {}) {
+  const convertMediaFuncArray = [];
+  let videoDerivative = {};
+  medias.forEach((mitem, index) => {
+    convertMediaFuncArray.push((singleCB) => {
+      const fileName = `videos/video-${parseInt(Date.now() + Math.random() * 100000)}.webm`;
+      utils.getMediaInfo(mitem.url, (err, info) => {
+        let subText = '';
+        if (err) {
+          console.log('error fetching media author and licence', err)
+        } else if (info){
+          if (info.author) {
+            subText = `Visual Content by ${info.author}, `
+          }
+          if (info.licence) {
+            subText += info.licence
+          }
+        }
+
+        // Collect derivatives info
+        if (info && info.author && info.licenseCode && info.fileName) {
+          videoDerivative ={
+            fileName: info.fileName,
+            author: info.author,
+            licence: info.licenseCode,
+            position: slidePosition,
+          }
+        }
+        
+        if (mitem.url.indexOf('400px-') !== -1) {
+          mitem.url = mitem.url.replace('400px-', '800px-');
+        }
+
+        let slideMediaUrl = mitem.tmpUrl || mitem.url;
+        // Use 800px thumbnail size instead of 400px for better image quality
+        if (slideMediaUrl.indexOf('400px-') !== -1) {
+          slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
+        }
+        console.log('converting submedia')
+        if (utils.getFileType(mitem.url) === 'image') {
+          imageToSilentVideo({ image: slideMediaUrl, subText, duration: mitem.time / 1000, outputPath: fileName }, (err, fileName) => {
+            if (err) return singleCB(err);
+            return singleCB(null, { fileName, index })
+          });
+        } else if (utils.getFileType(mitem.url) === 'video') {
+          videoToSilentVideo({ video: slideMediaUrl, subText, duration: mitem.time / 1000, outputPath: fileName },  (err, fileName) => {
+            if (err) return singleCB(err);
+            return singleCB(null, { fileName, index })
+          });
+        } else if (utils.getFileType(mitem.url) === 'gif') {
+          gifToSilentVideo({ gif: slideMediaUrl, subText, duration: mitem.time / 1000, outputPath: fileName},  (err, fileName) => {
+            if (err) return singleCB(err);
+            return singleCB(null, { fileName, index })
+          });
+        } else {
+          return singleCB(new Error('Invalid file type'));
+        }
+      })
+    })
+  })
+
+  async.parallelLimit(convertMediaFuncArray, 3, (err, outputInfo) => {
+    if (err) return cb(err);
+    const slideVideos = outputInfo.sort((a, b) => a.index - b.index);
+    console.log('combining videos of submedia')
+    combineVideos(slideVideos, {
+      onEnd: (err, videoPath) => {
+        if (err) return callback(err);
+        console.log('adding audio to video')
+        const finalSlideVidPath = path.join(__dirname, 'videos', `slide_with_audio-${Date.now()}-${parseInt(Math.random() * 100000)}.webm`)
+        return addAudioToVideo(videoPath, audio, finalSlideVidPath, (err, videoPath) => {
+          if (err) return callback(err);
+          return callback(null, { videoPath: finalSlideVidPath, videoDerivative });
+        });
+      },
+    })
+  })
+}
+
 
 function updateProgress(videoId, conversionProgress) {
   VideoModel.findByIdAndUpdate(videoId, {$set: { conversionProgress }}, (err, result) => {
@@ -536,4 +603,14 @@ ArticleModel.count({ published: true }, (err, count) => {
 //   //   console.log(err, result);
 //   // });
   
+// })
+
+// console.log('duration', 6333.08 / 1000)
+// imageToSilentVideo({
+//   image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/US_Navy_090715-N-9689V-008_Republic_of_Singapore_Navy_Maj._Boon_Hor_Ho_examines_a_local_man_suffering_from_abdominal_pain_during_a_Pacific_Partnership_2009_medical_civic_action_project_at_Niu%27ui_Hospital.jpg/400px-thumbnail.jpg',
+//   duration: 6333.08 / 1000,
+//   subtext: 'This is subtext',
+//   outputPath: 'testimagetosilent.webm'
+// }, (err, outputInfo) => {
+//   console.log('images to silent', err, outputInfo);
 // })

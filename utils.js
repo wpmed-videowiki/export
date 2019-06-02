@@ -309,7 +309,6 @@ function getMediaLicenseCode(url, callback) {
     }, 100);
   } else {
     const infoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=File:${filePageTitle}&redirects&prop=cirrusdoc&format=json&formatversion=2`;
-    console.log(infoUrl);
     request.get(infoUrl, (err, res) => {
       if (err) return callback(err);
       let licence = '';
@@ -335,7 +334,6 @@ function getMediaLicenseCode(url, callback) {
       } catch(e) {
         return callback(e);
       }
-      console.log('licence',  licence)
       return callback(null, licence);
     })
   }
@@ -393,7 +391,6 @@ function getReferencesImage(title, wikiSource, references, callback) {
     })
   
     async.series(renderRefsFuncArray, (err, result) => {
-      console.log('done', err, result);
       if (err) return callback(err);
       return callback(null, result);
     })
@@ -472,7 +469,7 @@ function generateReferencesVideos(title, wikiSource, references, { onProgress, o
     })
 
     async.parallelLimit(refFuncArray, 2, (err, result) => {
-      console.log(err, result);
+      console.log(err);
       if (err) {
         return onEnd(err);
       }
@@ -522,7 +519,7 @@ function generateCreditsVideos(article, { extraUsers, humanvoice, user }, callba
       });
     }
     async.series(refFuncArray, (err, result) => {
-      console.log(err, result);
+      console.log(err);
       if (err) {
         return callback(err);
       }

@@ -19,7 +19,13 @@ module.exports = {
       return callback(null, targetPath);
     })
   },
-
+  imageToSilentVideo({ image, subtext, duration, outputPath }, callback = () => {}) {
+    let command = commandBuilder.generateImageToVideoCommand({ imagePath: image, subtext, silent: true, outputPath, duration });
+    exec(command, (err, stdout, stderr) => {
+      if (err) return callback(err);
+      return callback(null, outputPath);
+    })
+  },
   imageToVideo(image, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
     getRemoteFile(image, (err, image) => {
       if (err) return callback(err);
@@ -44,6 +50,13 @@ module.exports = {
           })
         })
       })
+    })
+  },
+  videoToSilentVideo({ video, duration, subtext, outputPath }, callback = () => {}) {
+    let command = commandBuilder.generateVideoToVideoCommand({ videoPath: video, subtext, silent: true, duration, outputPath });
+    exec(command, (err, stdout, stderr) => {
+      if (err) return callback(err);
+      return callback(null, outputPath);
     })
   },
   videoToVideo(video, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
@@ -95,7 +108,6 @@ module.exports = {
         } else {
           updateFuncArray = updateFuncArray.concat([
             (videoPath, cb) => {
-              console.log('get video framrate path', videoPath);
               getVideoFramerate(videoPath, (err, frameRate) => {
                 if (err) return cb(err);
                 return cb(null, videoPath, frameRate);
@@ -131,6 +143,13 @@ module.exports = {
     
   },
 
+  gifToSilentVideo({ gif, duration, subtext, outputPath }, callback = () => {}) {
+    let command = commandBuilder.generateGifToVideoCommand({ gifPath: gif, silent: true, duration, outputPath });
+    exec(command, (err) => {
+      if (err) return callback(err);
+      return callback(null, outputPath);
+    })
+  },
   gifToVideo(gif, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
     getRemoteFileDuration(audio, (err, audioDuration) => {
       if (err) {
@@ -156,12 +175,10 @@ module.exports = {
     // Fade duration is in seconds
     const fadedPath = path.join(__dirname, 'tmp', `faded-${ parseInt(Date.now() + Math.random() * 100000)}-fade.webm`);
     getVideoNumberOfFrames(video, (err, framesInfo) => {
-      console.log('frames info', framesInfo)
       if (err) return callback(err);
       if (!framesInfo) return callback(new Error('Something went wrong getting number of frames'));
       const command = `ffmpeg -i ${video} -vf 'fade=in:0:${Math.ceil(framesInfo.frameRate * fadeDuration)},fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
       // const command = `ffmpeg -y -i ${video} -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
-      console.log(command);
       exec(command, (err) => {
         if (err) return callback(err);
         return callback(null, fadedPath);
@@ -169,50 +186,64 @@ module.exports = {
     })
   },
 
-  convertMedia(medias, callback = () => {}) {
-    /*
-      Convert steps:
-      1- convert single images/videos into silent videos
-      2- combine them together
-      3- add audio layer
-    */
-   const convertFuncArray = [];
-    medias.forEach((media, index) => {
-      const fileType = utils.getFileType(media.url);
-      const videoName = `videos/submedia-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
-      switch (fileType) {
-        case 'video':
-          convertFuncArray.push(function(cb) {
-            trimVideo(media.url, media.time, videoName, (err, outputPath) => {
-              if (err) return cb(err);
-              return cb(null, { video: outputPath, index });
-            });
-          });
-          break;
-        default:
-          convertFuncArray.push(function(cb) {
-            convertImageToSilentVideo(media.url, media.time, true, videoName, (err, outputPath) => {
-              if (err) return cb(err);
-              return cb(null, { video: outputPath, index });
-            });
-          });
-          break;
-      }
-    })
+  // convertMedia(medias, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
+  //   /*
+  //     Convert steps:
+  //     1- convert single images/videos into silent videos
+  //     2- combine them together
+  //     3- add audio layer
+  //   */
+  //  const convertFuncArray = [];
+  //   medias.forEach((media, index) => {
+  //     const fileType = utils.getFileType(media.url);
+  //     const videoName = `videos/submedia-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
+  //     switch (fileType) {
+  //       case 'video':
+  //         convertFuncArray.push(function(cb) {
+  //           trimVideo(media.url, media.time, videoName, (err, outputPath) => {
+  //             if (err) return cb(err);
+  //             return cb(null, { video: outputPath, index });
+  //           });
+  //         });
+  //         break;
+  //       default:
+  //         convertFuncArray.push(function(cb) {
+  //           convertImageToSilentVideo(media.url, media.time, true, videoName, (err, outputPath) => {
+  //             if (err) return cb(err);
+  //             return cb(null, { video: outputPath, index });
+  //           });
+  //         });
+  //         break;
+  //     }
+  //   })
 
-    async.parallelLimit(convertFuncArray, 5, (err, results) => {
+  //   async.parallelLimit(convertFuncArray, 5, (err, results) => {
+  //     if (err) return callback(err);
+  //     console.log(results);
+  //     const videos = results.sort((a, b) => a.index - b.index).map(v => ({ ...v, fileName: v.video }));
+  //     this.combineVideos(videos, {
+  //       onEnd(err, videoPath) {
+  //         // Cleanup
+  //         videos.forEach((v) => fs.unlink(v.fileName, () => {}));
+  //         if (err) return callback(err);
+  //         // Add audio layer
+  //         this.videoToVideo(videoPath, audio, text, subtext, withSubtitles, outputPath, (err, outputPath) => {
+  //           fs.unlink(videoPath, () => {});
+  //           if (err) return callback(err);
+  //           return callback(null, outputPath);
+  //         })
+  //       }
+  //     })
+  //   })
+  // },
+
+  addAudioToVideo(video, audio, outputPath, callback = () => {}) {
+    const command = `ffmpeg -y -i ${video} -i ${audio} -map 0:v:0 -map 1:a:0 ${outputPath}`;
+    console.log(command)
+    exec(command, (err, stdout, stderr) => {
       if (err) return callback(err);
-      console.log(results);
-      const videos = results.sort((a, b) => a.index - b.index).map(v => ({ ...v, fileName: v.video }));
-      combineVideos(videos, {
-        onEnd(err, videoPath) {
-          // Cleanup
-          videos.forEach((v) => fs.unlink(v.fileName, () => {}));
-          if (err) return callback(err);
-
-          return callback(null, videoPath);
-        }
-      })
+      if (!fs.existsSync(outputPath)) return callback(new Error('Something went wrong'));
+      return callback(null, outputPath);
     })
   },
 
