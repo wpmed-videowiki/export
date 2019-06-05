@@ -6,6 +6,7 @@ const AudioSchema = new Schema({
   position: { type: Number, required: true },
   audioURL: { type: String, required: true },
   Key: { type: String, required: true },
+  duration: Number,
 })
 
 const TranslatedSlideSchema = new Schema({

@@ -187,7 +187,47 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
     console.log('custom human voice')
     video.humanvoice.audios.forEach((audio) => {
       if (audio.position < slidesHtml.length) {
-        slidesHtml[audio.position].audio = audio.audioURL;
+        // Set human voice audio and duration on normal slides
+        const matchingSlide = slidesHtml[audio.position];
+        matchingSlide.audio = audio.audioURL;
+        matchingSlide.duration = audio.duration;
+        // Set media timing
+        if (!matchingSlide.media || matchingSlide.media.length === 0) {
+          matchingSlide.media = [{
+            url: DEFAUL_IMAGE_URL,
+            type: 'image',
+            time: audio.duration,
+          }]
+        } else if (matchingSlide.media.length === 1) {
+          matchingSlide.media[0].time = audio.duration;
+        } else {
+          /*  we have two cases here
+              1- the medias are smaller than human voice audios
+                - in this case, we add the extra time to the last media item
+              2- the medias are longer than human voice audios
+                - in this case, we see the difference and remove it from 
+                  the last media item if possible. if not, we set the timings
+                  equally between all media items 
+          */
+          const totalMediaDuration = matchingSlide.media.reduce((acc, m) => m.time + acc, 0);
+          const durationDifference = Math.abs(matchingSlide.duration - totalMediaDuration);
+          if (matchingSlide.duration > totalMediaDuration) {
+            const durationDifference = matchingSlide.duration - totalMediaDuration;
+            matchingSlide.media[matchingSlide.media.length - 1].time = matchingSlide.media[matchingSlide.media.length - 1].time + durationDifference;
+          } else if (totalMediaDuration > matchingSlide.duration) {
+            // check the last media item, if its duration - duration difference is more than 2 seconds,
+            // just remove trim the duration to match the audio duration
+            // otherwise, reset duration on all media items
+            const lastMediaItem = matchingSlide.media[matchingSlide.media.length - 1];
+            if ((lastMediaItem.time - durationDifference) >= 2000) {
+              lastMediaItem.time = lastMediaItem.time - durationDifference;
+            } else {
+              matchingSlide.media.forEach((mitem) => {
+                mitem.time = matchingSlide.duration / matchingSlide.media.length;
+              })
+            }
+          }
+        }
       }
     })
   }
@@ -196,6 +236,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
       slide.media = [{
         url: DEFAUL_IMAGE_URL,
         type: 'image',
+        time: slide.duration,
       }];
     } else {
       slide.media.forEach((mitem) => {
@@ -203,17 +244,22 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
           if (!mitem.url) {
             mitem.url = DEFAUL_IMAGE_URL;
             mitem.type = 'image';
+            mitem.time = slide.duration;
             return cb();
           }
-    
           utils.checkMediaFileExists(mitem.url, (err, valid) => {
             if (err || !valid) {
                 console.log(err, valid);
                 mitem.url = DEFAUL_IMAGE_URL;
                 mitem.type = 'image';
+                mitem.time = slide.duration;
               }
               const tmpMediaName = path.join(__dirname, 'tmp', `downTmpMedia-${Date.now()}-${parseInt(Math.random() * 10000)}.${mitem.url.split('.').pop()}`);
-              utils.downloadMediaFile(mitem.url, tmpMediaName, (err) => {
+              let slideMediaUrl = mitem.url;
+              if (slideMediaUrl.indexOf('400px-') !== -1) {
+                slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
+              }
+              utils.downloadMediaFile(slideMediaUrl, tmpMediaName, (err) => {
                 if (err) return cb();
                 mitem.tmpUrl = tmpMediaName;
                 return cb();
@@ -257,8 +303,10 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
       downAudioFuncArray.push(downAudioFunc);
     })
     console.log('downloading audios');
+
     async.parallelLimit(async.reflectAll(downAudioFuncArray), 2, (err, value) => {
-      if (err) {
+      console.log('start time', new Date())
+        if (err) {
         console.log('error fetching tmp medias', err);
       }
 
@@ -452,7 +500,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                     if (creditsVideos) {
                       creditsVideos.forEach(video => fs.existsSync(video.fileName) && fs.unlink(video.fileName, () => {}));
                     }
-
+                    console.log('end time', new Date())
                     return callback(null, cbResult);
                   })
                 }
@@ -504,7 +552,7 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
         if (slideMediaUrl.indexOf('400px-') !== -1) {
           slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
         }
-        console.log('converting submedia')
+        console.log('converting submedia', mitem.time / 1000)
         if (utils.getFileType(mitem.url) === 'image') {
           imageToSilentVideo({ image: slideMediaUrl, subText, duration: mitem.time / 1000, outputPath: fileName }, (err, fileName) => {
             if (err) return singleCB(err);
@@ -530,18 +578,24 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
   async.parallelLimit(convertMediaFuncArray, 3, (err, outputInfo) => {
     if (err) return cb(err);
     const slideVideos = outputInfo.sort((a, b) => a.index - b.index);
-    console.log('combining videos of submedia')
-    combineVideos(slideVideos, {
-      onEnd: (err, videoPath) => {
-        if (err) return callback(err);
-        console.log('adding audio to video')
-        const finalSlideVidPath = path.join(__dirname, 'videos', `slide_with_audio-${Date.now()}-${parseInt(Math.random() * 100000)}.webm`)
-        return addAudioToVideo(videoPath, audio, finalSlideVidPath, (err, videoPath) => {
+    console.log('combining videos of submedia');
+    const finalSlideVidPath = path.join(__dirname, 'videos', `slide_with_audio-${Date.now()}-${parseInt(Math.random() * 100000)}.webm`)
+    if (medias.length > 1) {
+      combineVideos(slideVideos, {
+        onEnd: (err, videoPath) => {
           if (err) return callback(err);
-          return callback(null, { videoPath: finalSlideVidPath, videoDerivative });
-        });
-      },
-    })
+          return addAudioToVideo(videoPath, audio, finalSlideVidPath, (err, videoPath) => {
+            if (err) return callback(err);
+            return callback(null, { videoPath: finalSlideVidPath, videoDerivative });
+          });
+        },
+      })
+    } else {
+      addAudioToVideo(slideVideos[0].fileName, audio, finalSlideVidPath, (err, videoPath) => {
+        if (err) return callback(err);
+        return callback(null, { videoPath: finalSlideVidPath, videoDerivative });
+      });
+    }
   })
 }
 
@@ -569,48 +623,3 @@ ArticleModel.count({ published: true }, (err, count) => {
     console.log(`Ready to handle a total of ${count} published articles in the database!`)
   }
 })
-
-// videoToVideo("Introduction_Slide_to_Acute_Visual_Loss.webm", "111b26bb-0d30-4f26-85ab-cee051fbbd40.mp3", 'temp1.webm', (err, path) => {
-//   console.log(err, path)
-// })
-
-// videoToVideo('https://upload.wikimedia.org/wikipedia/commons/0/08/Black_Hole_animation.webm', 'http://dnv8xrxt73v5u.cloudfront.net/47d21ab0-b65e-4a51-8491-f24e2b7df801.mp3', 'On 11 February 2016, the LIGO collaboration announced the first direct detection of gravitational waves, which also represented the first observation of a black hole merger. As of April 2018, six gravitational wave events have been observed that originated from merging black holes.', '', true, './vidsub.webm', (err, videoPath) => {
-//   console.log(err, videoPath);
-// })
-
-// imageToVideo('https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Obama_and_Hilary_face_off_in_DNC_2008_primaries.png/400px-Obama_and_Hilary_face_off_in_DNC_2008_primaries.png', 
-// 'https://dnv8xrxt73v5u.cloudfront.net/549754ec-5e55-472f-8715-47120efc4567.mp3', 
-// cheerio.load('He received <a href="">hello im a link</a> national attention in 2004 with his March primary win, his well-received July Democratic National Convention keynote address, and his landslide November election to the Senate').text(), '', true, './withsub.webm', (err, filePath) => {
-//   console.log(err, filePath)
-// })
-
-// utils.generateSubtitle('Despite its invisible interior, the presence of a black hole can be inferred through its interaction with other matter and with electromagnetic radiation such as visible light', 'https://dnv8xrxt73v5u.cloudfront.net/58626ba7-4423-465d-b410-62fabd501472.mp3', () => {
-
-// })
-
-// gifToVideo('https://upload.wikimedia.org/wikipedia/commons/f/f4/Einstein_rings_zoom_web.gif', 'https://dnv8xrxt73v5u.cloudfront.net/549754ec-5e55-472f-8715-47120efc4567.mp3', 'He received national attention in 2004 with his March primary win, his well-received July Democratic National Convention keynote address, and his landslide November election to the Senate', '', true, 'gifsub.webm', (err, outpath) => {
-//   console.log(err, outpath)
-// })
-
-
-
-// GETTING CONTRIBUTORS LSIT 
-//  https://en.wikipedia.org/w/api.php?action=query&format=json&prop=contributors&titles=Wikipedia:MEDSKL/Acute_vision_loss&explaintext=1&exsectionformat=wiki&redirects
-
-
-// ArticleModel.findOne({title: 'Elon_Musk', published: true}, (err, article) => {
-//   // utils.generateCreditsVideos(article.title, article.wikiSource, (err, result) => {
-//   //   console.log(err, result);
-//   // });
-  
-// })
-
-// console.log('duration', 6333.08 / 1000)
-// imageToSilentVideo({
-//   image: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/70/US_Navy_090715-N-9689V-008_Republic_of_Singapore_Navy_Maj._Boon_Hor_Ho_examines_a_local_man_suffering_from_abdominal_pain_during_a_Pacific_Partnership_2009_medical_civic_action_project_at_Niu%27ui_Hospital.jpg/400px-thumbnail.jpg',
-//   duration: 6333.08 / 1000,
-//   subtext: 'This is subtext',
-//   outputPath: 'testimagetosilent.webm'
-// }, (err, outputInfo) => {
-//   console.log('images to silent', err, outputInfo);
-// })

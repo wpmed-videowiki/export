@@ -20,7 +20,7 @@ module.exports = {
     })
   },
   imageToSilentVideo({ image, subtext, duration, outputPath }, callback = () => {}) {
-    let command = commandBuilder.generateImageToVideoCommand({ imagePath: image, subtext, silent: true, outputPath, duration });
+    let command = commandBuilder.generateImageToVideoCommand({ imagePath: image, subtext, silent: true, shouldOverlayWhiteBackground: true, outputPath, duration });
     exec(command, (err, stdout, stderr) => {
       if (err) return callback(err);
       return callback(null, outputPath);
@@ -53,11 +53,25 @@ module.exports = {
     })
   },
   videoToSilentVideo({ video, duration, subtext, outputPath }, callback = () => {}) {
-    let command = commandBuilder.generateVideoToVideoCommand({ videoPath: video, subtext, silent: true, duration, outputPath });
-    exec(command, (err, stdout, stderr) => {
-      if (err) return callback(err);
-      return callback(null, outputPath);
-    })
+    if (video.split('.').pop().toLowerCase() === 'ogv') {
+      const tmpVidPath = path.join(__dirname, 'tmp', `tmpOgvVideo_${Date.now()}.webm`);
+      exec(`ffmpeg -i ${video} ${tmpVidPath}`, (err, stdout, stderr) => {
+        if (err) return cb(null, video);
+        let command = commandBuilder.generateVideoToVideoCommand({ videoPath: tmpVidPath, subtext, silent: true, duration, outputPath });
+
+        exec(command, (err, stdout, stderr) => {
+          if (err) return callback(err);
+          fs.unlink(tmpVidPath, () => {});
+          return callback(null, outputPath);
+        })
+      })
+    } else {
+      let command = commandBuilder.generateVideoToVideoCommand({ videoPath: video, subtext, silent: true, duration, outputPath });
+      exec(command, (err, stdout, stderr) => {
+        if (err) return callback(err);
+        return callback(null, outputPath);
+      })
+    }
   },
   videoToVideo(video, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
     /**
@@ -238,12 +252,20 @@ module.exports = {
   // },
 
   addAudioToVideo(video, audio, outputPath, callback = () => {}) {
-    const command = `ffmpeg -y -i ${video} -i ${audio} -map 0:v:0 -map 1:a:0 ${outputPath}`;
-    console.log(command)
-    exec(command, (err, stdout, stderr) => {
-      if (err) return callback(err);
-      if (!fs.existsSync(outputPath)) return callback(new Error('Something went wrong'));
-      return callback(null, outputPath);
+    getRemoteFileDuration(audio, (err, duration) => {
+      let audioTrim = '';
+      if (err || !duration) {
+        console.log('error getting audio duration', err);
+      } else {
+        audioTrim = ` -t ${duration} `;
+      }
+      const command = `ffmpeg -y -i ${video} -i ${audio} -map 0:v:0 -map 1:a:0 ${audioTrim} ${outputPath}`;
+      console.log('command', command);
+      exec(command, (err, stdout, stderr) => {
+        if (err) return callback(err);
+        if (!fs.existsSync(outputPath)) return callback(new Error('Something went wrong'));
+        return callback(null, outputPath);
+      })
     })
   },
 
