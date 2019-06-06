@@ -289,8 +289,8 @@ module.exports = {
           totalDuration = 0;
         }
         exec(`ffmpeg ${fileNames} \
-        -filter_complex "${filterComplex}concat=n=${videos.length}:v=1${!silent && `:a=1`}[outv]${!silent && `[outa]`}" \
-        -map "[outv]" ${!silent && `-map "[outa]"`} -crf 23 ${videoPath}`, (err, stdout, stderr) => {
+        -filter_complex "${filterComplex}concat=n=${videos.length}:v=1${!silent ? `:a=1` : ''}[outv]${!silent ? `[outa]` : ''}" \
+        -map "[outv]" ${!silent ? `-map "[outa]"` : ''} -crf 23 ${videoPath}`, (err, stdout, stderr) => {
           if (err) {
             onEnd(err);
           } else {
