@@ -310,7 +310,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
         console.log('error fetching tmp medias', err);
       }
 
-      const videoDerivatives = [];
+      let videoDerivatives = [];
 
       slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
         function convert(cb) {
@@ -326,7 +326,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             }
             let { videoPath, videoDerivative } = result;
             if (videoDerivative) {
-              videoDerivatives.push(videoDerivative)
+              videoDerivatives = videoDerivatives.concat(videoDerivative)
             }
             const finalizeSlideFunc = [];
             slide.video = videoPath;
@@ -516,7 +516,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
 
 function convertMedias(medias, audio, slidePosition, callback = () => {}) {
   const convertMediaFuncArray = [];
-  let videoDerivative = {};
+  let videoDerivative = [];
   medias.forEach((mitem, index) => {
     convertMediaFuncArray.push((singleCB) => {
       const fileName = `videos/video-${parseInt(Date.now() + Math.random() * 100000)}.webm`;
@@ -535,12 +535,12 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
 
         // Collect derivatives info
         if (info && info.author && info.licenseCode && info.fileName) {
-          videoDerivative ={
+          videoDerivative.push({
             fileName: info.fileName,
             author: info.author,
             licence: info.licenseCode,
             position: slidePosition,
-          }
+          })
         }
         
         if (mitem.url.indexOf('400px-') !== -1) {
