@@ -269,7 +269,7 @@ module.exports = {
     })
   },
 
-  combineVideos(videos, { onProgress = () => {}, onEnd = () => {} }) {
+  combineVideos(videos, silent, { onProgress = () => {}, onEnd = () => {} }) {
     const listName = parseInt(Date.now() + Math.random() * 100000);
     const videoPath = `videos/${listName}.webm`;
     fs.writeFile(`./${listName}.txt`, videos.map((video, index) => `file '${video.fileName}'`).join('\n'), (err, content) => {
@@ -281,7 +281,7 @@ module.exports = {
       }
 
       const fileNames = `-i ${videos.map(item => item.fileName).join(' -i ')}`;
-      const filterComplex = videos.map((item, index) => `[${index}:v:0][${index}:a:0]`).join("");
+      const filterComplex = videos.map((item, index) => `[${index}:v:0]${!silent ? `[${index}:a:0]` : ''}`).join("");
 
       
       getFilesDuration(videos.map(v => v.fileName), (err, totalDuration) => {
@@ -289,8 +289,8 @@ module.exports = {
           totalDuration = 0;
         }
         exec(`ffmpeg ${fileNames} \
-        -filter_complex "${filterComplex}concat=n=${videos.length}:v=1:a=1[outv][outa]" \
-        -map "[outv]" -map "[outa]" -crf 23 ${videoPath}`, (err, stdout, stderr) => {
+        -filter_complex "${filterComplex}concat=n=${videos.length}:v=1${!silent && `:a=1`}[outv]${!silent && `[outa]`}" \
+        -map "[outv]" ${!silent && `-map "[outa]"`} -crf 23 ${videoPath}`, (err, stdout, stderr) => {
           if (err) {
             onEnd(err);
           } else {

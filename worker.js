@@ -448,7 +448,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                 finalVideos = finalVideos.concat(referencesVideos);
               }
               
-              combineVideos(finalVideos, {
+              combineVideos(finalVideos, false, {
                 onProgress: (progress) => {
                   if (progress && progress !== 'null') {
                     VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: progress }}, (err, result) => {
@@ -581,7 +581,7 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
     console.log('combining videos of submedia');
     const finalSlideVidPath = path.join(__dirname, 'videos', `slide_with_audio-${Date.now()}-${parseInt(Math.random() * 100000)}.webm`)
     if (medias.length > 1) {
-      combineVideos(slideVideos, {
+      combineVideos(slideVideos, true, {
         onEnd: (err, videoPath) => {
           if (err) return callback(err);
           return addAudioToVideo(videoPath, audio, finalSlideVidPath, (err, videoPath) => {
