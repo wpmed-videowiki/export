@@ -576,7 +576,7 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
   })
 
   async.parallelLimit(convertMediaFuncArray, 3, (err, outputInfo) => {
-    if (err) return cb(err);
+    if (err) return callback(err);
     const slideVideos = outputInfo.sort((a, b) => a.index - b.index);
     console.log('combining videos of submedia');
     const finalSlideVidPath = path.join(__dirname, 'videos', `slide_with_audio-${Date.now()}-${parseInt(Math.random() * 100000)}.webm`)
