@@ -2,11 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const async = require('async');
-const { getRemoteFile, getRemoteFileDuration, getFilesDuration, getVideoFramerate, getVideoDimentions, getVideoNumberOfFrames, getFileType, trimVideo, silent } = require('./utils')
+const { getRemoteFile, getRemoteFileDuration, getFilesDuration, getVideoFramerate, getFileDimentions, getVideoNumberOfFrames, getFileType, trimVideo, silent } = require('./utils')
 const { generateSubtitle } = require('./subtitles');
 const commandBuilder = require('./commandBuilder');
-
-const FFMPEG_SCALE = '[0:v]scale=w=800:h=600,setsar=1:1,setdar=16:9,pad=800:600:(ow-iw)/2:(oh-ih)/2';
+const constants = require('./constants');
 
 module.exports = {
 
@@ -20,10 +19,16 @@ module.exports = {
     })
   },
   imageToSilentVideo({ image, subtext, duration, outputPath }, callback = () => {}) {
-    let command = commandBuilder.generateImageToVideoCommand({ imagePath: image, subtext, silent: true, shouldOverlayWhiteBackground: true, outputPath, duration });
-    exec(command, (err, stdout, stderr) => {
-      if (err) return callback(err);
-      return callback(null, outputPath);
+    getFileDimentions(image, (err, dimentions) => {
+      if (err && !dimentions) {
+        console.log('error getting dimentions', err);
+        dimentions = `${constants.VIDEO_WIDTH}x${constants.VIDEO_HEIGHT}`;
+      }
+      let command = commandBuilder.generateImageToVideoCommand({ imagePath: image, subtext, silent: true, shouldOverlayWhiteBackground: true, dimentions, outputPath, duration });
+      exec(command, (err, stdout, stderr) => {
+        if (err) return callback(err);
+        return callback(null, outputPath);
+      })
     })
   },
   imageToVideo(image, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
@@ -128,7 +133,7 @@ module.exports = {
               })
             },
             (videoPath, frameRate, cb) => {
-              getVideoDimentions(videoPath, (err, videoDimentions) => {
+              getFileDimentions(videoPath, (err, videoDimentions) => {
                 if (err) return cb(err);
                 return cb(null, videoPath, frameRate, videoDimentions);
               })
@@ -353,3 +358,20 @@ function normalizeCommandText(text) {
 // getRemoteFileDuration('https://dnv8xrxt73v5u.cloudfront.net/bbedc689-1971-40d6-959d-95757c7d319e.mp3', (err, duration) => {
 //   console.log(err, duration)
 // })
+// module.exports.imageToSilentVideo({
+//   image: 'testimg.jpg',
+//   subtext: 'Subtesxt test',
+//   duration: 5,
+//   outputPath: 'test2.webm'
+// }, (err, out) => {
+//   console.log(err, out)
+// })
+
+module.exports.videoToSilentVideo ({
+  duration: 5,
+  video: 'vid.webm',
+  subtext: 'test subtext',
+  outputPath: 'vidtovid.webm'
+}, (err, out) => {
+  console.log(err, out)
+})
