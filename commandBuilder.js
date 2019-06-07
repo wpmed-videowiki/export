@@ -33,7 +33,7 @@ module.exports = {
       command = `ffmpeg -y -t ${duration} -i ${videoPath} -c:v libvpx-vp9 -pix_fmt yuv420p  -filter_complex "`;
       command += `${generateBackgroundBlur('[0:v]', '[bg]')};[bg][0:v]overlay=(W-w)/2:(H-h)/2`;
       if (subtext) {
-        command += `[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p`
+        command += `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p`
       }
       command += `" ${outputPath}`
     } else if (audioDuration <= videoDuration) {

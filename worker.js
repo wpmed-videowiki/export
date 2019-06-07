@@ -521,15 +521,15 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
     convertMediaFuncArray.push((singleCB) => {
       const fileName = `videos/video-${parseInt(Date.now() + Math.random() * 100000)}.webm`;
       utils.getMediaInfo(mitem.url, (err, info) => {
-        let subText = '';
+        let subtext = '';
         if (err) {
           console.log('error fetching media author and licence', err)
         } else if (info){
           if (info.author) {
-            subText = `Visual Content by ${info.author}, `
+            subtext = `Visual Content by ${info.author}, `
           }
           if (info.licence) {
-            subText += info.licence
+            subtext += info.licence
           }
         }
 
@@ -552,19 +552,19 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
         if (slideMediaUrl.indexOf('400px-') !== -1) {
           slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
         }
-        console.log('converting submedia', mitem.time / 1000)
+        console.log('converting submedia', slideMediaUrl, subtext)
         if (utils.getFileType(mitem.url) === 'image') {
-          imageToSilentVideo({ image: slideMediaUrl, subText, duration: mitem.time / 1000, outputPath: fileName }, (err, fileName) => {
+          imageToSilentVideo({ image: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, (err, fileName) => {
             if (err) return singleCB(err);
             return singleCB(null, { fileName, index })
           });
         } else if (utils.getFileType(mitem.url) === 'video') {
-          videoToSilentVideo({ video: slideMediaUrl, subText, duration: mitem.time / 1000, outputPath: fileName },  (err, fileName) => {
+          videoToSilentVideo({ video: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName },  (err, fileName) => {
             if (err) return singleCB(err);
             return singleCB(null, { fileName, index })
           });
         } else if (utils.getFileType(mitem.url) === 'gif') {
-          gifToSilentVideo({ gif: slideMediaUrl, subText, duration: mitem.time / 1000, outputPath: fileName},  (err, fileName) => {
+          gifToSilentVideo({ gif: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName},  (err, fileName) => {
             if (err) return singleCB(err);
             return singleCB(null, { fileName, index })
           });
@@ -575,7 +575,7 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
     })
   })
 
-  async.parallelLimit(convertMediaFuncArray, 3, (err, outputInfo) => {
+  async.parallelLimit(convertMediaFuncArray, SLIDE_CONVERT_PER_TIME, (err, outputInfo) => {
     if (err) return callback(err);
     const slideVideos = outputInfo.sort((a, b) => a.index - b.index);
     console.log('combining videos of submedia');
