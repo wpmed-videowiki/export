@@ -367,11 +367,20 @@ function normalizeCommandText(text) {
 //   console.log(err, out)
 // })
 
-module.exports.videoToSilentVideo ({
+// module.exports.videoToSilentVideo ({
+//   duration: 5,
+//   video: 'vid.webm',
+//   subtext: 'test subtext',
+//   outputPath: 'vidtovid.webm'
+// }, (err, out) => {
+//   console.log(err, out)
+// })
+
+module.exports.gifToSilentVideo({
+  gif: 'https://upload.wikimedia.org/wikipedia/commons/3/3b/Basic_dengue_curve_gif.gif',
   duration: 5,
-  video: 'vid.webm',
-  subtext: 'test subtext',
-  outputPath: 'vidtovid.webm'
-}, (err, out) => {
-  console.log(err, out)
+  subtext: 'Test subtext',
+  outputPath: 'giftovid.webm',
+}, (err, res) => {
+  console.log(err, res)
 })

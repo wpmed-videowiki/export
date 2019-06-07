@@ -678,8 +678,3 @@ module.exports = {
 // webshot('<html><body>Hello World</body></html>', 'hello_world.png', {siteType:'html'}, function(err) {
 //   // screenshot now saved to hello_world.png
 // });
-
-
-getFileDimentions('https://upload.wikimedia.org/wikipedia/commons/3/3b/Basic_dengue_curve_gif.gif', (err, info) => {
-  console.log(err, info)
-})

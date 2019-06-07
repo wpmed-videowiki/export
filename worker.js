@@ -526,7 +526,7 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
           console.log('error fetching media author and licence', err)
         } else if (info){
           if (info.author) {
-            subtext = `Visual Content by ${info.author}, `
+            subtext = `Visual Content by ${info.author}${info.licence ? ', ' : '.'}`
           }
           if (info.licence) {
             subtext += info.licence
@@ -548,10 +548,7 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
         }
 
         let slideMediaUrl = mitem.tmpUrl || mitem.url;
-        // Use 800px thumbnail size instead of 400px for better image quality
-        if (slideMediaUrl.indexOf('400px-') !== -1) {
-          slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
-        }
+       
         console.log('converting submedia', slideMediaUrl, subtext)
         if (utils.getFileType(mitem.url) === 'image') {
           imageToSilentVideo({ image: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, (err, fileName) => {
