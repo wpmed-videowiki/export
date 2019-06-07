@@ -55,9 +55,9 @@ module.exports = {
   generateGifToVideoCommand({ gifPath, audioDuration, audio, subtext, outputPath, silent, duration }) {
     let command = '';
     if (silent) {
-      command = `ffmpeg -y -ignore_loop 0 -t ${duration} -i ${gifPath} -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t ${duration} -c:v libvpx -crf 12 -b:v 500K -filter_complex "`;
+      command = `ffmpeg -y -ignore_loop 0 -t ${duration} -i ${gifPath} -crf 12 -b:v 500K -filter_complex "`;
       command += `${generateBackgroundBlur('[0:v]', '[bg]')};[bg][0:v]overlay=(W-w)/2:(H-h)/2`;
-
+  
     } else {
       command = `ffmpeg -y -ignore_loop 0 -t ${audioDuration} -i ${gifPath} -i ${audio} -filter_complex "${constants.FFMPEG_SCALE}`;
     }
@@ -67,7 +67,7 @@ module.exports = {
     if (!silent) {
       command += `" -strict -2 -c:v libvpx-vp9 -shortest ${outputPath}`
     } else {
-      command += `" -shortest -strict -2 -c:v libvpx-vp9 -c:a libvorbis -threads 4 -pix_fmt yuv420p -shortest ${outputPath}`;
+      command += `" -shortest -strict -2 -c:v libvpx-vp9 -threads 4 -pix_fmt yuv420p -shortest ${outputPath}`;
     }
     return command;
   },
@@ -80,3 +80,22 @@ function normalizeCommandText(text) {
 function generateBackgroundBlur(inputStream, outputStream) {
   return `color=color=black@.3:size=${constants.VIDEO_WIDTH}x${constants.VIDEO_HEIGHT}:d=1[dark];${inputStream}scale=w=${constants.VIDEO_WIDTH}:h=${constants.VIDEO_HEIGHT},setsar=${constants.SAR},setdar=${constants.DAR},crop=${constants.VIDEO_WIDTH}:${constants.VIDEO_HEIGHT}[blurbase];[blurbase]boxblur=lr='min(h,w)/20':lp=1:cr='min(cw,ch)/20':cp=1[blurred];[blurred][dark]overlay[darkened];[darkened]setsar=${constants.SAR},setdar=${constants.DAR}${outputStream}`
 }
+// generateGifToVideoCommand({ gifPath, audioDuration, audio, subtext, outputPath, silent, duration }) {
+//   let command = '';
+//   if (silent) {
+//     command = `ffmpeg -y -ignore_loop 0 -t ${duration} -i ${gifPath} -crf 12 -b:v 500K -filter_complex "`;
+//     command += `${generateBackgroundBlur('[0:v]', '[bg]')};[bg][0:v]overlay=(W-w)/2:(H-h)/2`;
+
+//   } else {
+//     command = `ffmpeg -y -ignore_loop 0 -t ${audioDuration} -i ${gifPath} -i ${audio} -filter_complex "${constants.FFMPEG_SCALE}`;
+//   }
+//   if (subtext) {
+//     command += ` [outv];[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p`
+//   }
+//   if (!silent) {
+//     command += `" -strict -2 -c:v libvpx-vp9 -shortest ${outputPath}`
+//   } else {
+//     command += `" -shortest -strict -2 -c:v libvpx-vp9 -threads 4 -pix_fmt yuv420p -shortest ${outputPath}`;
+//   }
+//   return command;
+// },

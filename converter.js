@@ -358,14 +358,13 @@ function normalizeCommandText(text) {
 // getRemoteFileDuration('https://dnv8xrxt73v5u.cloudfront.net/bbedc689-1971-40d6-959d-95757c7d319e.mp3', (err, duration) => {
 //   console.log(err, duration)
 // })
-// module.exports.imageToSilentVideo({
-//   image: 'testimg.jpg',
-//   subtext: 'Subtesxt test',
-//   duration: 5,
-//   outputPath: 'test2.webm'
-// }, (err, out) => {
-//   console.log(err, out)
-// })
+module.exports.imageToSilentVideo({
+  image: 'cc_video_share.png',
+  duration: 2,
+  outputPath: 'cc_share.webm'
+}, (err, out) => {
+  console.log(err, out)
+})
 
 // module.exports.videoToSilentVideo ({
 //   duration: 5,
@@ -376,11 +375,11 @@ function normalizeCommandText(text) {
 //   console.log(err, out)
 // })
 
-module.exports.gifToSilentVideo({
-  gif: 'https://upload.wikimedia.org/wikipedia/commons/3/3b/Basic_dengue_curve_gif.gif',
-  duration: 5,
-  subtext: 'Test subtext',
-  outputPath: 'giftovid.webm',
-}, (err, res) => {
-  console.log(err, res)
-})
+// module.exports.gifToSilentVideo({
+//   gif: 'Basic_dengue_curve_gif.gif',
+//   duration: 5,
+//   subtext: 'Test subtext',
+//   outputPath: 'giftovid.webm',
+// }, (err, res) => {
+//   console.log(err, res)
+// })
