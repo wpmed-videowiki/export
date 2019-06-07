@@ -27,7 +27,11 @@ module.exports = {
   generateVideoToVideoCommand({ videoPath, audio, audioDuration, videoDuration, subtext, outputPath, videoDimentions, frameRate, silent, duration }) {
     let command;
     if (silent) {
-      command = `ffmpeg -y -t ${duration} -i ${videoPath} -c:v libvpx-vp9 -pix_fmt yuv420p  -filter_complex "${FFMPEG_SCALE}" ${outputPath}`;
+      command = `ffmpeg -y -t ${duration} -i ${videoPath} -c:v libvpx-vp9 -pix_fmt yuv420p  -filter_complex "${FFMPEG_SCALE}`;
+      if (subtext) {
+        command += `[outv];[outv]format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10[outv];[outv]format=yuv420p`
+      }
+      command += `" ${outputPath}`
     } else if (audioDuration <= videoDuration) {
       command = `ffmpeg -y -t ${audioDuration} -i ${videoPath} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -map 0:v:0 -map 1:a:0 -filter_complex "${FFMPEG_SCALE}`;
       if (subtext) {

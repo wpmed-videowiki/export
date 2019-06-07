@@ -158,7 +158,7 @@ module.exports = {
   },
 
   gifToSilentVideo({ gif, duration, subtext, outputPath }, callback = () => {}) {
-    let command = commandBuilder.generateGifToVideoCommand({ gifPath: gif, silent: true, duration, outputPath });
+    let command = commandBuilder.generateGifToVideoCommand({ gifPath: gif, subtext, silent: true, duration, outputPath });
     exec(command, (err) => {
       if (err) return callback(err);
       return callback(null, outputPath);
