@@ -252,8 +252,13 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
           let slideMediaUrl = mitem.origianlUrl || mitem.url;
           const tmpMediaName = path.join(__dirname, 'tmp', `downTmpMedia-${Date.now()}-${parseInt(Math.random() * 10000)}.${slideMediaUrl.split('.').pop()}`);
           console.log('veirying', slideMediaUrl)
+
           if (slideMediaUrl.indexOf('400px-') !== -1) {
             slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
+          }
+          // Svg files are rendered as pngs
+          if (mitem.origianlUrl && mitem.origianlUrl.split('.').toLowerCase() === 'svg') {
+            slideMediaUrl = mitem.url;
           }
           utils.downloadMediaFile(slideMediaUrl, tmpMediaName, (err) => {
             if (err) {
