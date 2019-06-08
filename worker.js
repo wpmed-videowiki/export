@@ -257,7 +257,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
           }
           // Svg files are rendered as pngs
-          if (mitem.origianlUrl && mitem.origianlUrl.split('.').toLowerCase() === 'svg') {
+          if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
             slideMediaUrl = mitem.url;
           }
           utils.downloadMediaFile(slideMediaUrl, tmpMediaName, (err) => {
