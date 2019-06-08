@@ -30,7 +30,7 @@ module.exports = {
           console.log(err);
           scale = false;
         }
-        console.log('should scale', dimentions, scale, image)
+        // console.log('should scale', dimentions, scale, image)
         let command = commandBuilder.generateImageToVideoCommand({ imagePath: image, subtext, silent: true, scale, shouldOverlayWhiteBackground: true, dimentions, outputPath, duration });
         exec(command, (err, stdout, stderr) => {
           if (err) return callback(err);
@@ -51,7 +51,7 @@ module.exports = {
           console.log(err);
           scale = false;
         }
-        console.log('should scale', dimentions, scale, gif);
+        // console.log('should scale', dimentions, scale, gif);
         let command = commandBuilder.generateGifToVideoCommand({ gifPath: gif, subtext, silent: true, duration, dimentions, outputPath });
         exec(command, (err) => {
           if (err) return callback(err);
@@ -77,7 +77,7 @@ module.exports = {
               console.log(err);
               scale = false;
             }
-            console.log('should scale', dimentions, scale, tmpVidPath);
+            // console.log('should scale', dimentions, scale, tmpVidPath);
             let command = commandBuilder.generateVideoToVideoCommand({ videoPath: tmpVidPath, subtext, silent: true, scale, duration, outputPath });
 
             exec(command, (err, stdout, stderr) => {
@@ -99,7 +99,7 @@ module.exports = {
             console.log(err);
             scale = false;
           }
-          console.log('should scale', dimentions, scale, video)
+          // console.log('should scale', dimentions, scale, video)
           let command = commandBuilder.generateVideoToVideoCommand({ videoPath: video, subtext, silent: true, scale, duration, outputPath });
           exec(command, (err, stdout, stderr) => {
             if (err) return callback(err);
@@ -324,7 +324,7 @@ module.exports = {
         audioTrim = ` -t ${duration} `;
       }
       const command = `ffmpeg -y -i ${video} -i ${audio} -map 0:v:0 -map 1:a:0 ${audioTrim} ${outputPath}`;
-      console.log('command', command);
+      // console.log('command', command);
       exec(command, (err, stdout, stderr) => {
         if (err) return callback(err);
         if (!fs.existsSync(outputPath)) return callback(new Error('Something went wrong'));
@@ -352,9 +352,11 @@ module.exports = {
         if (err) {
           totalDuration = 0;
         }
-        exec(`ffmpeg ${fileNames} \
+        const command = `ffmpeg ${fileNames} \
         -filter_complex "${filterComplex}concat=n=${videos.length}:v=1${!silent ? `:a=1` : ''}[outv]${!silent ? `[outa]` : ''}" \
-        -map "[outv]" ${!silent ? `-map "[outa]"` : ''} -crf 23 ${videoPath}`, (err, stdout, stderr) => {
+        -map "[outv]" ${!silent ? `-map "[outa]"` : ''} -crf 23 ${videoPath}`;
+        // const command = `ffmpeg -f concat -safe 0 -i ${listName}.txt -c copy ${videoPath}`;
+        exec(command, (err, stdout, stderr) => {
           if (err) {
             onEnd(err);
           } else {
