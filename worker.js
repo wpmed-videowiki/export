@@ -35,7 +35,9 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
     convertChannel = ch;
     convertChannel.prefetch(1);
     console.log('connection created')
-    convertChannel.assertQueue(CONVERT_QUEUE, {durable: true});
+    convertChannel.assertQueue(CONVERT_QUEUE, {durable: true}, (err, ok) => {
+      console.log('queue assert', err, ok)
+    })
     convertChannel.assertQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, { durable: true });
     convertChannel.assertQueue(DELETE_AWS_VIDEO, { durable: true });
 
@@ -247,23 +249,22 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             mitem.time = slide.duration;
             return cb();
           }
-          utils.checkMediaFileExists(mitem.url, (err, valid) => {
-            if (err || !valid) {
-                console.log(err, valid);
-                mitem.url = DEFAUL_IMAGE_URL;
-                mitem.type = 'image';
-                mitem.time = slide.duration;
-              }
-              const tmpMediaName = path.join(__dirname, 'tmp', `downTmpMedia-${Date.now()}-${parseInt(Math.random() * 10000)}.${mitem.url.split('.').pop()}`);
-              let slideMediaUrl = mitem.url;
-              if (slideMediaUrl.indexOf('400px-') !== -1) {
-                slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
-              }
-              utils.downloadMediaFile(slideMediaUrl, tmpMediaName, (err) => {
-                if (err) return cb();
-                mitem.tmpUrl = tmpMediaName;
-                return cb();
-              })
+          let slideMediaUrl = mitem.origianlUrl || mitem.url;
+          const tmpMediaName = path.join(__dirname, 'tmp', `downTmpMedia-${Date.now()}-${parseInt(Math.random() * 10000)}.${slideMediaUrl.split('.').pop()}`);
+          console.log('veirying', slideMediaUrl)
+          if (slideMediaUrl.indexOf('400px-') !== -1) {
+            slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
+          }
+          utils.downloadMediaFile(slideMediaUrl, tmpMediaName, (err) => {
+            if (err) {
+              console.log(err);
+              mitem.url = DEFAUL_IMAGE_URL;
+              mitem.type = 'image';
+              mitem.time = slide.duration;
+              return cb();
+            }
+            mitem.tmpUrl = tmpMediaName;
+            return cb();
           })
         }
         verifySlidesMediaFuncArray.push(verifyMedia);
@@ -526,7 +527,7 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
           console.log('error fetching media author and licence', err)
         } else if (info){
           if (info.author) {
-            subtext = `Visual Content by ${info.author}, `
+            subtext = `Visual Content by ${info.author}${info.licence ? ', ' : '.'}`
           }
           if (info.licence) {
             subtext += info.licence
@@ -543,15 +544,8 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
           })
         }
         
-        if (mitem.url.indexOf('400px-') !== -1) {
-          mitem.url = mitem.url.replace('400px-', '800px-');
-        }
-
         let slideMediaUrl = mitem.tmpUrl || mitem.url;
-        // Use 800px thumbnail size instead of 400px for better image quality
-        if (slideMediaUrl.indexOf('400px-') !== -1) {
-          slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
-        }
+       
         console.log('converting submedia', slideMediaUrl, subtext)
         if (utils.getFileType(mitem.url) === 'image') {
           imageToSilentVideo({ image: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, (err, fileName) => {
