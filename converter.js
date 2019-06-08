@@ -2,12 +2,113 @@ const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
 const async = require('async');
-const { getRemoteFile, getRemoteFileDuration, getFilesDuration, getVideoFramerate, getFileDimentions, getVideoNumberOfFrames, getFileType, trimVideo, silent } = require('./utils')
+const {
+  getRemoteFile,
+  getRemoteFileDuration,
+  getFilesDuration,
+  getVideoFramerate,
+  getFileDimentions,
+  getVideoNumberOfFrames,
+  shouldMediaFileScale, 
+  getFileType,
+  trimVideo,
+  silent
+} = require('./utils')
 const { generateSubtitle } = require('./subtitles');
 const commandBuilder = require('./commandBuilder');
 const constants = require('./constants');
 
 module.exports = {
+  imageToSilentVideo({ image, subtext, duration, outputPath }, callback = () => {}) {
+    getFileDimentions(image, (err, dimentions) => {
+      if (err && !dimentions) {
+        console.log('error getting dimentions', err);
+        dimentions = `${constants.VIDEO_WIDTH}x${constants.VIDEO_HEIGHT}`;
+      }
+      shouldMediaFileScale(image, (err, scale) => {
+        if (err) {
+          console.log(err);
+          scale = false;
+        }
+        console.log('should scale', dimentions, scale, image)
+        let command = commandBuilder.generateImageToVideoCommand({ imagePath: image, subtext, silent: true, scale, shouldOverlayWhiteBackground: true, dimentions, outputPath, duration });
+        exec(command, (err, stdout, stderr) => {
+          if (err) return callback(err);
+          return callback(null, outputPath);
+        })
+      })
+    })
+  },
+
+  gifToSilentVideo({ gif, duration, subtext, outputPath }, callback = () => {}) {
+    getFileDimentions(gif, (err, dimentions) => {
+      if (err && !dimentions) {
+        console.log('error getting dimentions', err);
+        dimentions = `${constants.VIDEO_WIDTH}x${constants.VIDEO_HEIGHT}`;
+      }
+      shouldMediaFileScale(gif, (err, scale) => {
+        if (err) {
+          console.log(err);
+          scale = false;
+        }
+        console.log('should scale', dimentions, scale, gif);
+        let command = commandBuilder.generateGifToVideoCommand({ gifPath: gif, subtext, silent: true, duration, dimentions, outputPath });
+        exec(command, (err) => {
+          if (err) return callback(err);
+          return callback(null, outputPath);
+        })
+      })
+    })
+  },
+
+  videoToSilentVideo({ video, duration, subtext, outputPath }, callback = () => {}) {
+    if (video.split('.').pop().toLowerCase() === 'ogv') {
+      const tmpVidPath = path.join(__dirname, 'tmp', `tmpOgvVideo_${Date.now()}.webm`);
+      exec(`ffmpeg -i ${video} ${tmpVidPath}`, (err, stdout, stderr) => {
+        if (err) return callback(null, video);
+        fs.unlink(video, () => {});
+        getFileDimentions(tmpVidPath, (err, dimentions) => {
+          if (err && !dimentions) {
+            console.log('error getting dimentions', err);
+            dimentions = `${constants.VIDEO_WIDTH}x${constants.VIDEO_HEIGHT}`;
+          }
+          shouldMediaFileScale(tmpVidPath, (err, scale) => {
+            if (err) {
+              console.log(err);
+              scale = false;
+            }
+            console.log('should scale', dimentions, scale, tmpVidPath);
+            let command = commandBuilder.generateVideoToVideoCommand({ videoPath: tmpVidPath, subtext, silent: true, scale, duration, outputPath });
+
+            exec(command, (err, stdout, stderr) => {
+              if (err) return callback(err);
+              fs.unlink(tmpVidPath, () => {});
+              return callback(null, outputPath);
+            })
+          })
+        })
+      })
+    } else {
+      getFileDimentions(video, (err, dimentions) => {
+        if (err && !dimentions) {
+          console.log('error getting dimentions', err);
+          dimentions = `${constants.VIDEO_WIDTH}x${constants.VIDEO_HEIGHT}`;
+        }
+        shouldMediaFileScale(video, (err, scale) => {
+          if (err) {
+            console.log(err);
+            scale = false;
+          }
+          console.log('should scale', dimentions, scale, video)
+          let command = commandBuilder.generateVideoToVideoCommand({ videoPath: video, subtext, silent: true, scale, duration, outputPath });
+          exec(command, (err, stdout, stderr) => {
+            if (err) return callback(err);
+            return callback(null, outputPath);
+          })
+        })
+      })
+    }
+  },
 
   wavToWebm(filePath, targetPath, callback = () => {}) {
     exec(`ffmpeg -i ${filePath} -vn ${targetPath}`, (err, stdout, stderr) => {
@@ -16,19 +117,6 @@ module.exports = {
         return callback(new Error('Something went wrong'))
       }
       return callback(null, targetPath);
-    })
-  },
-  imageToSilentVideo({ image, subtext, duration, outputPath }, callback = () => {}) {
-    getFileDimentions(image, (err, dimentions) => {
-      if (err && !dimentions) {
-        console.log('error getting dimentions', err);
-        dimentions = `${constants.VIDEO_WIDTH}x${constants.VIDEO_HEIGHT}`;
-      }
-      let command = commandBuilder.generateImageToVideoCommand({ imagePath: image, subtext, silent: true, shouldOverlayWhiteBackground: true, dimentions, outputPath, duration });
-      exec(command, (err, stdout, stderr) => {
-        if (err) return callback(err);
-        return callback(null, outputPath);
-      })
     })
   },
   imageToVideo(image, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
@@ -56,27 +144,6 @@ module.exports = {
         })
       })
     })
-  },
-  videoToSilentVideo({ video, duration, subtext, outputPath }, callback = () => {}) {
-    if (video.split('.').pop().toLowerCase() === 'ogv') {
-      const tmpVidPath = path.join(__dirname, 'tmp', `tmpOgvVideo_${Date.now()}.webm`);
-      exec(`ffmpeg -i ${video} ${tmpVidPath}`, (err, stdout, stderr) => {
-        if (err) return cb(null, video);
-        let command = commandBuilder.generateVideoToVideoCommand({ videoPath: tmpVidPath, subtext, silent: true, duration, outputPath });
-
-        exec(command, (err, stdout, stderr) => {
-          if (err) return callback(err);
-          fs.unlink(tmpVidPath, () => {});
-          return callback(null, outputPath);
-        })
-      })
-    } else {
-      let command = commandBuilder.generateVideoToVideoCommand({ videoPath: video, subtext, silent: true, duration, outputPath });
-      exec(command, (err, stdout, stderr) => {
-        if (err) return callback(err);
-        return callback(null, outputPath);
-      })
-    }
   },
   videoToVideo(video, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
     /**
@@ -160,14 +227,6 @@ module.exports = {
     })
    })
     
-  },
-
-  gifToSilentVideo({ gif, duration, subtext, outputPath }, callback = () => {}) {
-    let command = commandBuilder.generateGifToVideoCommand({ gifPath: gif, subtext, silent: true, duration, outputPath });
-    exec(command, (err) => {
-      if (err) return callback(err);
-      return callback(null, outputPath);
-    })
   },
   gifToVideo(gif, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
     getRemoteFileDuration(audio, (err, audioDuration) => {
@@ -358,13 +417,14 @@ function normalizeCommandText(text) {
 // getRemoteFileDuration('https://dnv8xrxt73v5u.cloudfront.net/bbedc689-1971-40d6-959d-95757c7d319e.mp3', (err, duration) => {
 //   console.log(err, duration)
 // })
-module.exports.imageToSilentVideo({
-  image: 'cc_video_share.png',
-  duration: 2,
-  outputPath: 'cc_share.webm'
-}, (err, out) => {
-  console.log(err, out)
-})
+// module.exports.imageToSilentVideo({
+//   image: 'Salmonella_typhi_typhoid_fever_PHIL_2215_lores.jpg',
+//   duration: 5,
+//   subtext: 'Test subtext',
+//   outputPath: 'testvid.webm'
+// }, (err, out) => {
+//   console.log(err, out)
+// })
 
 // module.exports.videoToSilentVideo ({
 //   duration: 5,
@@ -376,7 +436,7 @@ module.exports.imageToSilentVideo({
 // })
 
 // module.exports.gifToSilentVideo({
-//   gif: 'Basic_dengue_curve_gif.gif',
+//   gif: 'Dengue_critical_gif.gif',
 //   duration: 5,
 //   subtext: 'Test subtext',
 //   outputPath: 'giftovid.webm',

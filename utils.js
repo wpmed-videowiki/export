@@ -17,7 +17,7 @@ const REGION = 'eu-west-1';
 const IMAGE_EXTENSIONS = ['jpeg', 'jpg', 'png', 'svg', 'tif', 'tiff', 'webp', 'jif', 'jfif', 'jp2','jpx','j2k', 'j2c', 'fpx', 'pcd'];
 const VIDEOS_EXTESION = ['webm', 'mp4', 'ogg', 'ogv'];
 const GIF_EXTESIONS = ['gif'];
-const { FFMPEG_SCALE } = require('./constants');
+const constants = require('./constants');
 
 const s3 = new AWS.S3({
   signatureVersion: 'v4',
@@ -125,6 +125,28 @@ function downloadMediaFile(url, destination, callback = () => {}) {
       return callback(new Error('Failed to download file'));
     }
     return callback(null, destination);
+  })
+}
+
+function shouldMediaFileScale(file, callback) {
+  getFileDimentions(file, (err, dimentions) => {
+    if (err && !dimentions) {
+      return callback(null, false);
+    }
+    try {
+      const [width, height] = dimentions.split('x');
+      if (parseInt(width) > constants.VIDEO_WIDTH && parseInt(height) > constants.VIDEO_HEIGHT) {
+        return callback(null, 'both');
+      } else if (parseInt(width) > constants.VIDEO_WIDTH) {
+       return callback(null, 'width'); 
+      } else if (parseInt(height) > constants.VIDEO_HEIGHT) {
+        return callback(null, 'height');
+      } else {
+        return callback(null, false);
+      }
+    } catch (error) {
+      return callback(error);
+    }
   })
 }
 
@@ -557,7 +579,7 @@ function convertImageToSilentVideo(image, duration, shouldOverlayWhiteBackground
   if (shouldOverlayWhiteBackground) {
     command += ` -f lavfi -i color=c=white:s=800x600`;
   }
-  command += ` -c:v libvpx-vp9 -t ${duration} -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t ${duration} -pix_fmt yuv420p  -filter_complex "${FFMPEG_SCALE}`;
+  command += ` -c:v libvpx-vp9 -t ${duration} -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t ${duration} -pix_fmt yuv420p  -filter_complex "${constants.FFMPEG_SCALE_BOTH}`;
   if (shouldOverlayWhiteBackground) {
     command += `[outv];[1:v][outv]overlay=1,format=yuv444p[outv];[outv]setsar=1:1,setdar=16:9`;
   }
@@ -574,7 +596,7 @@ function convertImageToSilentVideo(image, duration, shouldOverlayWhiteBackground
 }
 
 function convertGIFToSilentVideo(image, duration, outputPath, callback = () => {}) {
-  exec(`ffmpeg -loop 1 -i ${image} -c:v libvpx-vp9 -t ${duration} -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t 2 -pix_fmt yuv420p  -filter_complex "${FFMPEG_SCALE}" ${outputPath}`, (err, stdout, stderr) => {
+  exec(`ffmpeg -loop 1 -i ${image} -c:v libvpx-vp9 -t ${duration} -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t 2 -pix_fmt yuv420p  -filter_complex "${constants.FFMPEG_SCALE_BOTH}" ${outputPath}`, (err, stdout, stderr) => {
     if (err) {
       return callback(err);
     }
@@ -586,7 +608,7 @@ function convertGIFToSilentVideo(image, duration, outputPath, callback = () => {
 }
 
 function trimVideo(video, duration, outputPath, callback) {
-  exec(`ffmpeg -t ${duration} -i ${video} -c:v libvpx-vp9 -pix_fmt yuv420p  -filter_complex "${FFMPEG_SCALE}" ${outputPath}`, (err, stdout, stderr) => {
+  exec(`ffmpeg -t ${duration} -i ${video} -c:v libvpx-vp9 -pix_fmt yuv420p  -filter_complex "${constants.FFMPEG_SCALE_BOTH}" ${outputPath}`, (err, stdout, stderr) => {
     if (err) {
       return callback(err);
     }
@@ -657,6 +679,7 @@ module.exports = {
   getVideoNumberOfFrames,
   convertImageToSilentVideo,
   convertGIFToSilentVideo,
+  shouldMediaFileScale,
   trimVideo,
 }
 
