@@ -116,7 +116,7 @@ function getVideoNumberOfFrames(url, callback) {
 }
 
 function downloadMediaFile(url, destination, callback = () => {}) {
-  exec(`ffmpeg -y -i ${url} -c copy ${destination}`, (err, stdout, stderr) => {
+  exec(`ffmpeg -y -i ${url} -vcodec copy -acodec copy ${destination}`, (err, stdout, stderr) => {
     if (err) {
       return callback(err);
     }
