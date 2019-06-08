@@ -551,6 +551,9 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
         
         let slideMediaUrl = mitem.tmpUrl || mitem.origianlUrl;
        
+        if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
+          slideMediaUrl = mitem.url;
+        }
         console.log('converting submedia', slideMediaUrl, subtext)
         if (utils.getFileType(mitem.url) === 'image') {
           imageToSilentVideo({ image: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, (err, fileName) => {
