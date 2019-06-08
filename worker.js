@@ -549,7 +549,7 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
           })
         }
         
-        let slideMediaUrl = mitem.tmpUrl || mitem.url;
+        let slideMediaUrl = mitem.tmpUrl || mitem.origianlUrl;
        
         console.log('converting submedia', slideMediaUrl, subtext)
         if (utils.getFileType(mitem.url) === 'image') {
