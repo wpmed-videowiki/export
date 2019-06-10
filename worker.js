@@ -256,10 +256,6 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
           if (slideMediaUrl.indexOf('400px-') !== -1) {
             slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
           }
-          // Svg files are rendered as pngs
-          if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
-            slideMediaUrl = mitem.url;
-          }
           utils.downloadMediaFile(slideMediaUrl, tmpMediaName, (err) => {
             if (err) {
               console.log(err);
@@ -272,7 +268,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             return cb();
           })
         }
-        // verifySlidesMediaFuncArray.push(verifyMedia);
+        verifySlidesMediaFuncArray.push(verifyMedia);
       })
     }
   })
@@ -550,10 +546,6 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
         }
         
         let slideMediaUrl = mitem.tmpUrl || mitem.origianlUrl;
-       
-        if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
-          slideMediaUrl = mitem.url;
-        }
         console.log('converting submedia', slideMediaUrl, subtext)
         if (utils.getFileType(mitem.url) === 'image') {
           imageToSilentVideo({ image: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, (err, fileName) => {

@@ -116,7 +116,7 @@ function getVideoNumberOfFrames(url, callback) {
 }
 
 function downloadMediaFile(url, destination, callback = () => {}) {
-  exec(`ffmpeg -y -i ${url} -vcodec copy -acodec copy ${destination}`, (err, stdout, stderr) => {
+  exec(`curl  ${url} --output ${destination}`, (err, stdout, stderr) => {
     if (err) {
       return callback(err);
     }
@@ -657,6 +657,12 @@ function getFileNameFromThumb (thumbnailPath) {
 // getCreditsImages('Elon_Musk', 'https://en.wikipedia.org', (err, images) => {
 //   console.log(err, images)
 // })
+
+// Make the media file ready to be inserted to ffmpeg processor
+// includes converting ogv files into webm, svg files to png...etc
+function processMediaFile(url, callback) {
+
+}
 
 module.exports = {
   getMediaInfo,
