@@ -22,7 +22,7 @@ function generateScale(scale) {
 }
 
 function generateSubtext(subtext) {
-  return `format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=max[outv];[outv]drawtext=text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=12:x=10:y=10`
+  return `format=yuv444p[outv];[outv]drawbox=y=0:color=black@0.8:width=iw:height=30:t=fill[outv];[outv]drawtext=fontfile=FreeSerif.ttf:text='${normalizeCommandText(subtext)}':fontcolor=white:fontsize=16:x=10:y=10`
 }
 
 module.exports = {
@@ -73,13 +73,13 @@ module.exports = {
     } else if (audioDuration <= videoDuration) {
       command = `ffmpeg -y -t ${audioDuration} -i ${videoPath} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -map 0:v:0 -map 1:a:0 -filter_complex "${constants.FFMPEG_SCALE_BOTH}`;
       if (subtext) {
-        command += `[outv];[outv]${generateSubtext(subtext)}[outv];[outv]format=yuv420p`
+        command += `[outv];[outv]${generateSubtext(audioDuration, subtext)}[outv];[outv]format=yuv420p`
       }
       command += `" -shortest ${outputPath}`;
     } else {
       command = `ffmpeg -y -f lavfi -i color=s=${videoDimentions}:d=${audioDuration}:r=${frameRate}:c=0xFFE4C4@0.0 -i ${videoPath} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "[0:v][1:v]overlay[outv];[outv]scale=w=800:h=600,setsar=${constants.SAR},setdar=${constants.DAR},pad=800:600:(ow-iw)/2:(oh-ih)/2[outv]`
       if (subtext) {
-        command += `;[outv]${generateSubtext(subtext)}[outv];[outv]format=yuv420p[outv]`;
+        command += `;[outv]${generateSubtext(audioDuration, subtext)}[outv];[outv]format=yuv420p[outv]`;
       }
       command += `" -map "[outv]" -map 2:a -shortest ${outputPath}`;
     }
@@ -130,14 +130,3 @@ module.exports = {
 //   }
 //   return command;
 // },
-
-console.log(
-  module.exports.generateVideoToVideoCommand({
-    videoPath: 'img',
-    shouldOverlayWhiteBackground: true,
-    subtext: 'test subtext',
-    dimentions: '940x415',
-    silent: true,
-    duration: 5,
-  })
-)
