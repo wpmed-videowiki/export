@@ -549,7 +549,7 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
           })
         }
         
-        let slideMediaUrl = mitem.tmpUrl || mitem.origianlUrl;
+        let slideMediaUrl = mitem.tmpUrl || mitem.origianlUrl || mitem.url;
        
         if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
           slideMediaUrl = mitem.url;
