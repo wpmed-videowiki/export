@@ -272,7 +272,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             return cb();
           })
         }
-        // verifySlidesMediaFuncArray.push(verifyMedia);
+        verifySlidesMediaFuncArray.push(verifyMedia);
       })
     }
   })

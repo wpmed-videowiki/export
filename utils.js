@@ -18,6 +18,7 @@ const IMAGE_EXTENSIONS = ['jpeg', 'jpg', 'png', 'svg', 'tif', 'tiff', 'webp', 'j
 const VIDEOS_EXTESION = ['webm', 'mp4', 'ogg', 'ogv'];
 const GIF_EXTESIONS = ['gif'];
 const constants = require('./constants');
+const commandBuilder = require('./commandBuilder');
 
 const s3 = new AWS.S3({
   signatureVersion: 'v4',
@@ -116,7 +117,7 @@ function getVideoNumberOfFrames(url, callback) {
 }
 
 function downloadMediaFile(url, destination, callback = () => {}) {
-  exec(`ffmpeg -y -i ${url} -vcodec copy -acodec copy ${destination}`, (err, stdout, stderr) => {
+  exec(`wget ${url} -O ${destination}`, (err, stdout, stderr) => {
     if (err) {
       return callback(err);
     }
@@ -575,47 +576,27 @@ function generateAudioByImage(username, callback) {
 }
 
 function convertImageToSilentVideo(image, duration, shouldOverlayWhiteBackground, outputPath, callback = () => {}) {
-  let command = `ffmpeg -loop 1 -i ${image}`
-  if (shouldOverlayWhiteBackground) {
-    command += ` -f lavfi -i color=c=white:s=800x600`;
-  }
-  command += ` -c:v libvpx-vp9 -t ${duration} -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t ${duration} -pix_fmt yuv420p  -filter_complex "${constants.FFMPEG_SCALE_BOTH}`;
-  if (shouldOverlayWhiteBackground) {
-    command += `[outv];[1:v][outv]overlay=1,format=yuv444p[outv];[outv]setsar=1:1,setdar=16:9`;
-  }
-  command += `" ${outputPath}`;
-  exec(command, (err, stdout, stderr) => {
+  shouldMediaFileScale(image, (err, scale) => {
     if (err) {
-      return callback(err);
+      console.log('error in should scale', err);
+      scale = false;
     }
-    if (!fs.existsSync(outputPath)) {
-      return callback(new Error('Something went wrong'));
-    }
-    return callback(null, outputPath);
-  })
-}
-
-function convertGIFToSilentVideo(image, duration, outputPath, callback = () => {}) {
-  exec(`ffmpeg -loop 1 -i ${image} -c:v libvpx-vp9 -t ${duration} -f lavfi -i anullsrc=channel_layout=5.1:sample_rate=48000 -t 2 -pix_fmt yuv420p  -filter_complex "${constants.FFMPEG_SCALE_BOTH}" ${outputPath}`, (err, stdout, stderr) => {
-    if (err) {
-      return callback(err);
-    }
-    if (!fs.existsSync(outputPath)) {
-      return callback(new Error('Something went wrong'));
-    }
-    return callback(null, outputPath);
-  })
-}
-
-function trimVideo(video, duration, outputPath, callback) {
-  exec(`ffmpeg -t ${duration} -i ${video} -c:v libvpx-vp9 -pix_fmt yuv420p  -filter_complex "${constants.FFMPEG_SCALE_BOTH}" ${outputPath}`, (err, stdout, stderr) => {
-    if (err) {
-      return callback(err);
-    }
-    if (!fs.existsSync(outputPath)) {
-      return callback(new Error('Something went wrong'));
-    }
-    return callback(null, outputPath);
+    getFileDimentions(image, (err, dimentions) => {
+      if (err) {
+        console.log('error getting dimentions', err);
+        dimentions = `${constants.VIDEO_WIDTH}x${constants.VIDEO_HEIGHT}`;
+      }
+      const command = commandBuilder.generateImageToVideoCommand({ imagePath: image, silent: true, scale, shouldOverlayWhiteBackground: true, dimentions, outputPath, duration })
+      exec(command, (err, stdout, stderr) => {
+        if (err) {
+          return callback(err);
+        }
+        if (!fs.existsSync(outputPath)) {
+          return callback(new Error('Something went wrong'));
+        }
+        return callback(null, outputPath);
+      })
+    })
   })
 }
 
@@ -677,10 +658,7 @@ module.exports = {
   uploadSubtitlesToS3,
   deleteVideoFromS3,
   getVideoNumberOfFrames,
-  convertImageToSilentVideo,
-  convertGIFToSilentVideo,
   shouldMediaFileScale,
-  trimVideo,
 }
 
 // // console.log(wikijs)

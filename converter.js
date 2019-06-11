@@ -11,7 +11,6 @@ const {
   getVideoNumberOfFrames,
   shouldMediaFileScale, 
   getFileType,
-  trimVideo,
   silent
 } = require('./utils')
 const { generateSubtitle } = require('./subtitles');
@@ -263,58 +262,6 @@ module.exports = {
       })
     })
   },
-
-  // convertMedia(medias, audio, text, subtext, withSubtitles, outputPath, callback = () => {}) {
-  //   /*
-  //     Convert steps:
-  //     1- convert single images/videos into silent videos
-  //     2- combine them together
-  //     3- add audio layer
-  //   */
-  //  const convertFuncArray = [];
-  //   medias.forEach((media, index) => {
-  //     const fileType = utils.getFileType(media.url);
-  //     const videoName = `videos/submedia-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
-  //     switch (fileType) {
-  //       case 'video':
-  //         convertFuncArray.push(function(cb) {
-  //           trimVideo(media.url, media.time, videoName, (err, outputPath) => {
-  //             if (err) return cb(err);
-  //             return cb(null, { video: outputPath, index });
-  //           });
-  //         });
-  //         break;
-  //       default:
-  //         convertFuncArray.push(function(cb) {
-  //           convertImageToSilentVideo(media.url, media.time, true, videoName, (err, outputPath) => {
-  //             if (err) return cb(err);
-  //             return cb(null, { video: outputPath, index });
-  //           });
-  //         });
-  //         break;
-  //     }
-  //   })
-
-  //   async.parallelLimit(convertFuncArray, 5, (err, results) => {
-  //     if (err) return callback(err);
-  //     console.log(results);
-  //     const videos = results.sort((a, b) => a.index - b.index).map(v => ({ ...v, fileName: v.video }));
-  //     this.combineVideos(videos, {
-  //       onEnd(err, videoPath) {
-  //         // Cleanup
-  //         videos.forEach((v) => fs.unlink(v.fileName, () => {}));
-  //         if (err) return callback(err);
-  //         // Add audio layer
-  //         this.videoToVideo(videoPath, audio, text, subtext, withSubtitles, outputPath, (err, outputPath) => {
-  //           fs.unlink(videoPath, () => {});
-  //           if (err) return callback(err);
-  //           return callback(null, outputPath);
-  //         })
-  //       }
-  //     })
-  //   })
-  // },
-
   addAudioToVideo(video, audio, outputPath, callback = () => {}) {
     getRemoteFileDuration(audio, (err, duration) => {
       let audioTrim = '';
@@ -352,10 +299,10 @@ module.exports = {
         if (err) {
           totalDuration = 0;
         }
-        const command = `ffmpeg ${fileNames} \
-        -filter_complex "${filterComplex}concat=n=${videos.length}:v=1${!silent ? `:a=1` : ''}[outv]${!silent ? `[outa]` : ''}" \
-        -map "[outv]" ${!silent ? `-map "[outa]"` : ''} -crf 23 ${videoPath}`;
-        // const command = `ffmpeg -f concat -safe 0 -i ${listName}.txt -c copy ${videoPath}`;
+        // const command = `ffmpeg ${fileNames} \
+        // -filter_complex "${filterComplex}concat=n=${videos.length}:v=1${!silent ? `:a=1` : ''}[outv]${!silent ? `[outa]` : ''}" \
+        // -map "[outv]" ${!silent ? `-map "[outa]"` : ''} -crf 23 ${videoPath}`;
+        const command = `ffmpeg -f concat -safe 0 -i ${listName}.txt -c copy ${videoPath}`;
         exec(command, (err, stdout, stderr) => {
           if (err) {
             onEnd(err);
@@ -420,10 +367,10 @@ function normalizeCommandText(text) {
 //   console.log(err, duration)
 // })
 // module.exports.imageToSilentVideo({
-//   image: 'Salmonella_typhi_typhoid_fever_PHIL_2215_lores.jpg',
-//   duration: 5,
-//   subtext: 'Test subtext',
-//   outputPath: 'testvid.webm'
+//   image: '400px-Dengue_world_map-Deaths_per_million_persons-WHO2012.svg.png',
+//   duration: 2,
+//   subtext: 'This is subtext test',
+//   outputPath: 'testvide.webm'
 // }, (err, out) => {
 //   console.log(err, out)
 // })
