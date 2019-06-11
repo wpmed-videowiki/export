@@ -586,7 +586,7 @@ function convertImageToSilentVideo(image, duration, shouldOverlayWhiteBackground
         console.log('error getting dimentions', err);
         dimentions = `${constants.VIDEO_WIDTH}x${constants.VIDEO_HEIGHT}`;
       }
-      const command = commandBuilder.generateImageToVideoCommand({ imagePath: image, silent: true, scale, shouldOverlayWhiteBackground: true, dimentions, outputPath, duration })
+      const command = commandBuilder.generateImageToVideoCommand({ imagePath: image, silent: true, scale: 'both', shouldOverlayWhiteBackground: true, dimentions, outputPath, duration })
       exec(command, (err, stdout, stderr) => {
         if (err) {
           return callback(err);
