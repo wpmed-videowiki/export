@@ -101,7 +101,8 @@ function generateSrtSubtitles(slides, multiplyFactor, callback = () => {}) {
 
       subList.push({
         index,
-        commonsText: `${index + 1}\n${start} --> ${end}\n<font>${slideText}</font>`,
+        commonsText: `${index + 1}\n${start} --> ${end}\n${slideText}`,
+        // commonsText: `${index + 1}\n${start} --> ${end}\n<font>${slideText}</font>`,
         vlcText: `${index + 1}\n${start} --> ${end}\n<font size="20">${slideText}</font>`,
         vttText: `${index + 1}\n${start.replace(/\,/g, '.')} --> ${end.replace(/\,/g, '.')}\n<font>${slideText}</font>`,
       });
@@ -112,7 +113,8 @@ function generateSrtSubtitles(slides, multiplyFactor, callback = () => {}) {
     const vlcSubtitlesFilePath = path.join(__dirname, 'tmp', `subtitles-vlc-${Date.now()}.srt`);
     const vttSubtitlesFilePath = path.join(__dirname, 'tmp', `subtitles-vtt-${Date.now()}.vtt`)
     
-    const commonsSubtitles = subList.map(sub => sub.commonsText.replace(/\[([0-9]+)\]/g, `<font size="1"><b>[$1]</b></font>`));
+    // const commonsSubtitles = subList.map(sub => sub.commonsText.replace(/\[([0-9]+)\]/g, `<font size="1"><b>[$1]</b></font>`));
+    const commonsSubtitles = subList.map(sub => sub.commonsText);
     const vlcSubtitles = subList.map(sub => sub.vlcText.replace(/\[([0-9]+)\]/g, `<font size="16"><b>[$1]</b></font>`));
     const vttSubtitles = subList.map(sub => sub.vttText.replace(/\[([0-9]+)\]/g, `<font><b>[$1]</b></font>`))
 
