@@ -258,7 +258,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
           }
           // Svg files are rendered as pngs
           if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
-            slideMediaUrl = mitem.url;
+            slideMediaUrl = mitem.thumburl || mitem.url;
           }
           utils.downloadMediaFile(slideMediaUrl, tmpMediaName, (err) => {
             if (err) {
@@ -552,7 +552,7 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
         let slideMediaUrl = mitem.tmpUrl || mitem.origianlUrl || mitem.url;
        
         if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
-          slideMediaUrl = mitem.url;
+          slideMediaUrl = mitem.thumburl || mitem.url;
         }
         console.log('converting submedia', slideMediaUrl, subtext)
         if (utils.getFileType(mitem.url) === 'image') {
