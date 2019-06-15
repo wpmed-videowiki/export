@@ -272,7 +272,7 @@ module.exports = {
       } else {
         audioTrim = ` -t ${duration} `;
       }
-      const command = `ffmpeg -y -i ${video} -i ${audio} -c:v copy -map 0:v:0 -map 1:a:0 ${audioTrim} ${outputPath}`;
+      const command = `ffmpeg -y -i ${video} -i ${audio} -map 0:v:0 -map 1:a:0 ${audioTrim} ${outputPath}`;
       // console.log('command', command);
       exec(command, (err, stdout, stderr) => {
         if (err) return callback(err);
