@@ -51,7 +51,8 @@ module.exports = {
           scale = false;
         }
         // console.log('should scale', dimentions, scale, gif);
-        let command = commandBuilder.generateGifToVideoCommand({ gifPath: gif, subtext, silent: true, duration, dimentions, outputPath });
+        let command = commandBuilder.generateGifToVideoCommand({ gifPath: gif, subtext, silent: true, duration, dimentions, scale, outputPath });
+        console.log('gif command', command)
         exec(command, (err) => {
           if (err) return callback(err);
           return callback(null, outputPath);
@@ -258,6 +259,7 @@ module.exports = {
       // const command = `ffmpeg -y -i ${video} -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
       exec(command, (err) => {
         if (err) return callback(err);
+        // fs.unlink(video, () => {})
         return callback(null, fadedPath);
       })
     })
@@ -270,7 +272,7 @@ module.exports = {
       } else {
         audioTrim = ` -t ${duration} `;
       }
-      const command = `ffmpeg -y -i ${video} -i ${audio} -map 0:v:0 -map 1:a:0 ${audioTrim} ${outputPath}`;
+      const command = `ffmpeg -y -i ${video} -i ${audio} -c:v copy -map 0:v:0 -map 1:a:0 ${audioTrim} ${outputPath}`;
       // console.log('command', command);
       exec(command, (err, stdout, stderr) => {
         if (err) return callback(err);

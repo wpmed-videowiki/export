@@ -272,7 +272,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             return cb();
           })
         }
-        verifySlidesMediaFuncArray.push(verifyMedia);
+        // verifySlidesMediaFuncArray.push(verifyMedia);
       })
     }
   })
@@ -554,22 +554,22 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
         if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
           slideMediaUrl = mitem.thumburl || mitem.url;
         }
+        const convertSingleCallback = function convertSingleCallback(err, fileName) {
+            if (err) return singleCB(err);
+            addFadeEffects(fileName, FADE_EFFECT_DURATION, (err, fadedVideo) => {
+              if (err) {
+                return singleCB(null, { fileName, index })
+              }
+              return singleCB(null, { fileName: fadedVideo, index });
+            })
+        }
         console.log('converting submedia', slideMediaUrl, subtext)
         if (utils.getFileType(mitem.url) === 'image') {
-          imageToSilentVideo({ image: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, (err, fileName) => {
-            if (err) return singleCB(err);
-            return singleCB(null, { fileName, index })
-          });
+          imageToSilentVideo({ image: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, convertSingleCallback);
         } else if (utils.getFileType(mitem.url) === 'video') {
-          videoToSilentVideo({ video: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName },  (err, fileName) => {
-            if (err) return singleCB(err);
-            return singleCB(null, { fileName, index })
-          });
+          videoToSilentVideo({ video: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, convertSingleCallback);
         } else if (utils.getFileType(mitem.url) === 'gif') {
-          gifToSilentVideo({ gif: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName},  (err, fileName) => {
-            if (err) return singleCB(err);
-            return singleCB(null, { fileName, index })
-          });
+          gifToSilentVideo({ gif: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName}, convertSingleCallback);
         } else {
           return singleCB(new Error('Invalid file type'));
         }
