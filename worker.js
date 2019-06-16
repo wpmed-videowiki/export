@@ -7,7 +7,7 @@ const async = require('async');
 const mongoose = require('mongoose');
 const cheerio = require('cheerio');
 
-const { imageToSilentVideo, videoToSilentVideo, gifToSilentVideo ,combineVideos, slowVideoRate, wavToWebm, addFadeEffects, addAudioToVideo }  = require('./converter');
+const { imageToSilentVideo, videoToSilentVideo, gifToSilentVideo ,combineVideos, slowVideoRate, wavToWebm, addFadeEffects, addFadeInEffect, addFadeOutEffect, addAudioToVideo }  = require('./converter');
 const utils = require('./utils');
 const subtitles = require('./subtitles');
 const { DEFAUL_IMAGE_URL, SLIDE_CONVERT_PER_TIME, FADE_EFFECT_DURATION } = require('./constants');
@@ -177,7 +177,59 @@ function deleteAWSVideoCallback(msg) {
     }
   })
 }
+const verifyMedia = (slide, mitem) => (cb) => {
+  if (!mitem.url) {
+    mitem.url = DEFAUL_IMAGE_URL;
+    mitem.type = 'image';
+    mitem.time = slide.duration;
+    return cb();
+  }
+  let slideMediaUrl = mitem.origianlUrl || mitem.url;
+  const tmpMediaName = path.join(__dirname, 'tmp', `downTmpMedia-${Date.now()}-${parseInt(Math.random() * 10000)}.${slideMediaUrl.split('.').pop()}`);
+  console.log('veirying', slideMediaUrl)
 
+  if (slideMediaUrl.indexOf('400px-') !== -1) {
+    slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
+  }
+  // Svg files are rendered as pngs
+  if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
+    slideMediaUrl = mitem.thumburl || mitem.url;
+  }
+  utils.downloadMediaFile(slideMediaUrl, tmpMediaName, (err) => {
+    if (err) {
+      console.log(err);
+      mitem.url = DEFAUL_IMAGE_URL;
+      mitem.type = 'image';
+      mitem.time = slide.duration;
+      return cb();
+    }
+    mitem.tmpUrl = tmpMediaName;
+    return cb();
+  })
+}
+
+const downloadSlideAudio = slide => (cb) => {
+  const tempAudioFile = path.join(__dirname, 'tmp', `downTmpAudio-${Date.now()}-${slide.audio.split('/').pop()}`);
+  const audioUrl = slide.audio.indexOf('http') === -1 ? `https:${slide.audio}` : slide.audio;
+  console.log('downloading', slide.audio)
+  utils.downloadMediaFile(audioUrl, tempAudioFile, (err) => {
+    if (!err) {
+      slide.tmpAudio = tempAudioFile;
+      const audioExt = tempAudioFile.split('.').pop();
+      // If the file extension is wav, convert it to webm for consistent encoding
+      if (audioExt !== 'wav') return cb();
+      wavToWebm(slide.tmpAudio, `${slide.tmpAudio}.webm`, (err, newTmpPath) => {
+        if (newTmpPath) {
+          slide.tmpAudio = newTmpPath;
+        }
+        return cb();
+      })
+    } else {
+      console.log('error downloading tmp audio', err);
+      return cb();
+    }
+  })
+}
 
 function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   const convertFuncArray = [];
@@ -242,42 +294,12 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
       }];
     } else {
       slide.media.forEach((mitem) => {
-        function verifyMedia(cb) {
-          if (!mitem.url) {
-            mitem.url = DEFAUL_IMAGE_URL;
-            mitem.type = 'image';
-            mitem.time = slide.duration;
-            return cb();
-          }
-          let slideMediaUrl = mitem.origianlUrl || mitem.url;
-          const tmpMediaName = path.join(__dirname, 'tmp', `downTmpMedia-${Date.now()}-${parseInt(Math.random() * 10000)}.${slideMediaUrl.split('.').pop()}`);
-          console.log('veirying', slideMediaUrl)
-
-          if (slideMediaUrl.indexOf('400px-') !== -1) {
-            slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
-          }
-          // Svg files are rendered as pngs
-          if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
-            slideMediaUrl = mitem.thumburl || mitem.url;
-          }
-          utils.downloadMediaFile(slideMediaUrl, tmpMediaName, (err) => {
-            if (err) {
-              console.log(err);
-              mitem.url = DEFAUL_IMAGE_URL;
-              mitem.type = 'image';
-              mitem.time = slide.duration;
-              return cb();
-            }
-            mitem.tmpUrl = tmpMediaName;
-            return cb();
-          })
-        }
-        // verifySlidesMediaFuncArray.push(verifyMedia);
+        // verifySlidesMediaFuncArray.push(verifyMedia(slide, mitem));
       })
     }
   })
   console.log('verifying media');
-  async.parallelLimit(async.reflectAll(verifySlidesMediaFuncArray), 2, (err, result) => {
+  async.parallelLimit(async.reflectAll(verifySlidesMediaFuncArray), 1, (err, result) => {
     if (err) {
       console.log('error verifying slides media');
     }
@@ -285,28 +307,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
     const downAudioFuncArray = [];
 
     slidesHtml.forEach((slide) => {
-      function downAudioFunc(cb) {
-        const tempAudioFile = path.join(__dirname, 'tmp', `downTmpAudio-${Date.now()}-${slide.audio.split('/').pop()}`);
-        const audioUrl = slide.audio.indexOf('http') === -1 ? `https:${slide.audio}` : slide.audio;
-        utils.downloadMediaFile(audioUrl, tempAudioFile, (err) => {
-          if (!err) {
-            slide.tmpAudio = tempAudioFile;
-            const audioExt = tempAudioFile.split('.').pop();
-            // If the file extension is wav, convert it to webm for consistent encoding
-            if (audioExt !== 'wav') return cb();
-            wavToWebm(slide.tmpAudio, `${slide.tmpAudio}.webm`, (err, newTmpPath) => {
-              if (newTmpPath) {
-                slide.tmpAudio = newTmpPath;
-              }
-              return cb();
-            })
-          } else {
-            console.log('error downloading tmp audio', err);
-            return cb();
-          }
-        })
-      }
-      downAudioFuncArray.push(downAudioFunc);
+      downAudioFuncArray.push(downloadSlideAudio(slide));
     })
     console.log('downloading audios');
 
@@ -362,28 +363,6 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                   fileName: slide.video,
                   index
                 });
-                // slowVideoRate(slide.video, {
-                //   onEnd: (err, slowedVideoPath) => {
-                //     console.log('slow done')
-                //     const oldPath = slide.video;
-                //     if (err || !fs.existsSync(slowedVideoPath)) {
-                //       // slide.video = videoPath;
-                //     } else {
-                //       fs.unlinkSync(oldPath);
-                //       slide.video = slowedVideoPath;
-                //     }
-                  
-                //     progress += (1 / article.slides.length) * 100;
-                //     updateProgress(videoId, progress);
-                    
-                //     console.log(`Progress ####### ${progress} ######`);
-                //     finalizeSlideCB();
-                //     return cb(null, {
-                //       fileName: slide.video,
-                //       index
-                //     });
-                //   }
-                // })
               })
               async.series(finalizeSlideFunc, () => {});
             })
@@ -556,7 +535,22 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
         }
         const convertSingleCallback = function convertSingleCallback(err, fileName) {
             if (err) return singleCB(err);
-            addFadeEffects(fileName, FADE_EFFECT_DURATION, (err, fadedVideo) => {
+            // Dont add extra fade effect for a single media item
+            if (medias.length === 1) {
+              return singleCB(null, { fileName, index });
+            }
+            let fadeFunc
+            // Add fade in effect only to last media item
+            if (index === medias.length - 1) {
+              fadeFunc = addFadeInEffect
+            } else if (index === 0) {
+              // Add fade out effect only to first media item
+              fadeFunc = addFadeOutEffect
+            } else {
+              // In middle media's, add both fades
+              fadeFunc = addFadeEffects
+            }
+            fadeFunc(fileName, FADE_EFFECT_DURATION, (err, fadedVideo) => {
               if (err) {
                 return singleCB(null, { fileName, index })
               }

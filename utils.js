@@ -117,7 +117,7 @@ function getVideoNumberOfFrames(url, callback) {
 }
 
 function downloadMediaFile(url, destination, callback = () => {}) {
-  exec(`wget ${url} -O ${destination}`, (err, stdout, stderr) => {
+  exec(`curl ${url} --output ${destination}`, (err, stdout, stderr) => {
     if (err) {
       return callback(err);
     }
