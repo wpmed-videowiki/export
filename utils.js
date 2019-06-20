@@ -331,7 +331,7 @@ function getMediaLicenseCode(url, callback) {
       return callback(new Error(`Invalid url ${url}`), null);
     }, 100);
   } else {
-    const infoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=File:${filePageTitle}&redirects&prop=cirrusdoc&format=json&formatversion=2`;
+    const infoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=File:${encodeURIComponent(filePageTitle)}&redirects&prop=cirrusdoc&format=json&formatversion=2`;
     request.get(infoUrl, (err, res) => {
       if (err) return callback(err);
       let licence = '';
@@ -423,7 +423,7 @@ function getReferencesImage(title, wikiSource, references, callback) {
 
 function getCreditsImages({ title, wikiSource, wikiRevisionId }, extraUsers = [], callback = () => {}) {
   // console.log(`${wikiSource}/w/api.php?action=query&format=json&prop=contributors&titles=${title}&redirects`)
-  request.get(`${wikiSource}/w/api.php?action=query&format=json&prop=contributors&titles=${title}&redirects`, (err, data) => {
+  request.get(`${wikiSource}/w/api.php?action=query&format=json&prop=contributors&titles=${encodeURIComponent(title)}&redirects`, (err, data) => {
     if (err) {
       console.log(err);
       return callback(err);

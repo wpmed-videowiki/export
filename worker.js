@@ -178,7 +178,7 @@ function deleteAWSVideoCallback(msg) {
   })
 }
 const verifyMedia = (slide, mitem) => (cb) => {
-  if (!mitem.url) {
+  if (!mitem.url && !mitem.origianlUrl) {
     mitem.url = DEFAUL_IMAGE_URL;
     mitem.type = 'image';
     mitem.time = slide.duration;
@@ -294,7 +294,9 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
       }];
     } else {
       slide.media.forEach((mitem) => {
-        // verifySlidesMediaFuncArray.push(verifyMedia(slide, mitem));
+        if (process.env.NODE_ENV !== 'production') {
+          // verifySlidesMediaFuncArray.push(verifyMedia(slide, mitem));
+        }
       })
     }
   })
@@ -508,7 +510,7 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
       utils.getMediaInfo(mitem.url, (err, info) => {
         let subtext = '';
         if (err) {
-          console.log('error fetching media author and licence', err)
+          console.log('error fetching media author and licence', err, medias);
         } else if (info){
           if (info.author) {
             subtext = `Visual Content by ${info.author}${info.licence ? ', ' : '.'}`
