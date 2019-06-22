@@ -237,8 +237,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   const slidesHtml = article.slidesHtml.slice();
   const verifySlidesMediaFuncArray = [];
 
-  if (video.humanvoice && video.humanvoice.audios && video.humanvoice.audios.length === slidesHtml.length) {
-    console.log('custom human voice')
+  if (video.humanvoice && video.humanvoice.audios && video.humanvoice.audios.length > 0) {
     video.humanvoice.audios.forEach((audio) => {
       if (audio.position < slidesHtml.length) {
         // Set human voice audio and duration on normal slides
