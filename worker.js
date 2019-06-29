@@ -234,7 +234,7 @@ const downloadSlideAudio = slide => (cb) => {
 function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   const convertFuncArray = [];
   let progress = 0;
-  const slidesHtml = article.slidesHtml.slice();
+  const slidesHtml = article.slidesHtml.slice().filter(slide => slide.text && slide.audio);
   const verifySlidesMediaFuncArray = [];
 
   if (video.humanvoice && video.humanvoice.audios && video.humanvoice.audios.length > 0) {
