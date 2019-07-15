@@ -240,47 +240,55 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   if (video.humanvoice && video.humanvoice.audios && video.humanvoice.audios.length > 0) {
     video.humanvoice.audios.forEach((audio) => {
       if (audio.position < slidesHtml.length) {
-        // Set human voice audio and duration on normal slides
-        const matchingSlide = slidesHtml[audio.position];
-        matchingSlide.audio = audio.audioURL;
-        matchingSlide.duration = audio.duration;
-        // Set media timing
-        if (!matchingSlide.media || matchingSlide.media.length === 0) {
-          matchingSlide.media = [{
-            url: DEFAUL_IMAGE_URL,
-            type: 'image',
-            time: audio.duration,
-          }]
-        } else if (matchingSlide.media.length === 1) {
-          matchingSlide.media[0].time = audio.duration;
-        } else {
-          /*  we have two cases here
-              1- the medias are smaller than human voice audios
-                - in this case, we add the extra time to the last media item
-              2- the medias are longer than human voice audios
-                - in this case, we see the difference and remove it from 
-                  the last media item if possible. if not, we set the timings
-                  equally between all media items 
-          */
-          const totalMediaDuration = matchingSlide.media.reduce((acc, m) => m.time + acc, 0);
-          const durationDifference = Math.abs(matchingSlide.duration - totalMediaDuration);
-          if (matchingSlide.duration > totalMediaDuration) {
-            const durationDifference = matchingSlide.duration - totalMediaDuration;
-            matchingSlide.media[matchingSlide.media.length - 1].time = matchingSlide.media[matchingSlide.media.length - 1].time + durationDifference;
-          } else if (totalMediaDuration > matchingSlide.duration) {
-            // check the last media item, if its duration - duration difference is more than 2 seconds,
-            // just remove trim the duration to match the audio duration
-            // otherwise, reset duration on all media items
-            const lastMediaItem = matchingSlide.media[matchingSlide.media.length - 1];
-            if ((lastMediaItem.time - durationDifference) >= 2000) {
-              lastMediaItem.time = lastMediaItem.time - durationDifference;
-            } else {
-              matchingSlide.media.forEach((mitem) => {
-                mitem.time = matchingSlide.duration / matchingSlide.media.length;
-              })
+        console.log('audio duration', audio)
+        utils.getRemoteFileDuration(`https:${audio.audioURL}`, (err, duration) => {
+          if (err) {
+            console.log('error egtting duration', err);
+          } else {
+            audio.duration = duration * 1000;
+          }
+          // Set human voice audio and duration on normal slides
+          const matchingSlide = slidesHtml[audio.position];
+          matchingSlide.audio = audio.audioURL;
+          matchingSlide.duration = audio.duration;
+          // Set media timing
+          if (!matchingSlide.media || matchingSlide.media.length === 0) {
+            matchingSlide.media = [{
+              url: DEFAUL_IMAGE_URL,
+              type: 'image',
+              time: audio.duration,
+            }]
+          } else if (matchingSlide.media.length === 1) {
+            matchingSlide.media[0].time = audio.duration;
+          } else {
+            /*  we have two cases here
+                1- the medias are smaller than human voice audios
+                  - in this case, we add the extra time to the last media item
+                2- the medias are longer than human voice audios
+                  - in this case, we see the difference and remove it from 
+                    the last media item if possible. if not, we set the timings
+                    equally between all media items 
+            */
+            const totalMediaDuration = matchingSlide.media.reduce((acc, m) => m.time + acc, 0);
+            const durationDifference = Math.abs(matchingSlide.duration - totalMediaDuration);
+            if (matchingSlide.duration >= totalMediaDuration) {
+              const durationDifference = matchingSlide.duration - totalMediaDuration;
+              matchingSlide.media[matchingSlide.media.length - 1].time = matchingSlide.media[matchingSlide.media.length - 1].time + durationDifference;
+            } else if (totalMediaDuration > matchingSlide.duration) {
+              // check the last media item, if its duration - duration difference is more than 2 seconds,
+              // just remove trim the duration to match the audio duration
+              // otherwise, reset duration on all media items
+              const lastMediaItem = matchingSlide.media[matchingSlide.media.length - 1];
+              if ((lastMediaItem.time - durationDifference) >= 2000) {
+                lastMediaItem.time = lastMediaItem.time - durationDifference;
+              } else {
+                matchingSlide.media.forEach((mitem) => {
+                  mitem.time = matchingSlide.duration / matchingSlide.media.length;
+                })
+              }
             }
           }
-        }
+        })
       }
     })
   }
@@ -294,7 +302,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
     } else {
       slide.media.forEach((mitem) => {
         if (process.env.NODE_ENV !== 'production') {
-          // verifySlidesMediaFuncArray.push(verifyMedia(slide, mitem));
+          verifySlidesMediaFuncArray.push(verifyMedia(slide, mitem));
         }
       })
     }
@@ -457,7 +465,9 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                   // If we have human voice, use the user's translation as the subtitles
                   if (video.humanvoice && video.humanvoice.translatedSlides && video.lang !== article.lang) {
                     video.humanvoice.translatedSlides.forEach((slide) => {
-                      subtitledSlides[slide.position].text = slide.text;
+                      if (subtitledSlides[slide.position]) {
+                        subtitledSlides[slide.position].text = slide.text;
+                      }
                     });
                   }
                   subtitles.generateSrtSubtitles(subtitledSlides, 1, (err, subs) => {
