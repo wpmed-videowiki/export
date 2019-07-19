@@ -248,7 +248,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             audio.duration = duration * 1000;
           }
           // Set human voice audio and duration on normal slides
-          const matchingSlide = slidesHtml[audio.position];
+          const matchingSlide = slidesHtml.find(s => s.position === audio.position);
           matchingSlide.audio = audio.audioURL;
           matchingSlide.duration = audio.duration;
           // Set media timing
