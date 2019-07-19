@@ -237,276 +237,283 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   const slidesHtml = article.slidesHtml.slice().filter(slide => slide.text && slide.audio);
   const verifySlidesMediaFuncArray = [];
 
+  const humanvoiceFuncArray = [];
   if (video.humanvoice && video.humanvoice.audios && video.humanvoice.audios.length > 0) {
     video.humanvoice.audios.forEach((audio) => {
       if (audio.position < slidesHtml.length) {
-        console.log('audio duration', audio)
-        utils.getRemoteFileDuration(`https:${audio.audioURL}`, (err, duration) => {
-          if (err) {
-            console.log('error egtting duration', err);
-          } else {
-            audio.duration = duration * 1000;
-          }
-          // Set human voice audio and duration on normal slides
-          const matchingSlide = slidesHtml.find(s => s.position === audio.position);
-          matchingSlide.audio = audio.audioURL;
-          matchingSlide.duration = audio.duration;
-          // Set media timing
-          if (!matchingSlide.media || matchingSlide.media.length === 0) {
-            matchingSlide.media = [{
-              url: DEFAUL_IMAGE_URL,
-              type: 'image',
-              time: audio.duration,
-            }]
-          } else if (matchingSlide.media.length === 1) {
-            matchingSlide.media[0].time = audio.duration;
-          } else {
-            /*  we have two cases here
-                1- the medias are smaller than human voice audios
-                  - in this case, we add the extra time to the last media item
-                2- the medias are longer than human voice audios
-                  - in this case, we see the difference and remove it from 
-                    the last media item if possible. if not, we set the timings
-                    equally between all media items 
-            */
-            const totalMediaDuration = matchingSlide.media.reduce((acc, m) => m.time + acc, 0);
-            const durationDifference = Math.abs(matchingSlide.duration - totalMediaDuration);
-            if (matchingSlide.duration >= totalMediaDuration) {
-              const durationDifference = matchingSlide.duration - totalMediaDuration;
-              matchingSlide.media[matchingSlide.media.length - 1].time = matchingSlide.media[matchingSlide.media.length - 1].time + durationDifference;
-            } else if (totalMediaDuration > matchingSlide.duration) {
-              // check the last media item, if its duration - duration difference is more than 2 seconds,
-              // just remove trim the duration to match the audio duration
-              // otherwise, reset duration on all media items
-              const lastMediaItem = matchingSlide.media[matchingSlide.media.length - 1];
-              if ((lastMediaItem.time - durationDifference) >= 2000) {
-                lastMediaItem.time = lastMediaItem.time - durationDifference;
-              } else {
-                matchingSlide.media.forEach((mitem) => {
-                  mitem.time = matchingSlide.duration / matchingSlide.media.length;
-                })
+        humanvoiceFuncArray.push((cb) => {
+          utils.getRemoteFileDuration(`https:${audio.audioURL}`, (err, duration) => {
+            console.log('audio duration', audio)
+            if (err) {
+              console.log('error egtting duration', err);
+            } else {
+              audio.duration = duration * 1000;
+            }
+            // Set human voice audio and duration on normal slides
+            const matchingSlide = slidesHtml.find(s => s.position === audio.position);
+            matchingSlide.audio = audio.audioURL;
+            matchingSlide.duration = audio.duration;
+            // Set media timing
+            if (!matchingSlide.media || matchingSlide.media.length === 0) {
+              matchingSlide.media = [{
+                url: DEFAUL_IMAGE_URL,
+                type: 'image',
+                time: audio.duration,
+              }]
+            } else if (matchingSlide.media.length === 1) {
+              matchingSlide.media[0].time = audio.duration;
+            } else {
+              /*  we have two cases here
+                  1- the medias are smaller than human voice audios
+                    - in this case, we add the extra time to the last media item
+                  2- the medias are longer than human voice audios
+                    - in this case, we see the difference and remove it from 
+                      the last media item if possible. if not, we set the timings
+                      equally between all media items 
+              */
+              const totalMediaDuration = matchingSlide.media.reduce((acc, m) => m.time + acc, 0);
+              const durationDifference = Math.abs(matchingSlide.duration - totalMediaDuration);
+              if (matchingSlide.duration >= totalMediaDuration) {
+                const durationDifference = matchingSlide.duration - totalMediaDuration;
+                matchingSlide.media[matchingSlide.media.length - 1].time = matchingSlide.media[matchingSlide.media.length - 1].time + durationDifference;
+              } else if (totalMediaDuration > matchingSlide.duration) {
+                // check the last media item, if its duration - duration difference is more than 2 seconds,
+                // just remove trim the duration to match the audio duration
+                // otherwise, reset duration on all media items
+                const lastMediaItem = matchingSlide.media[matchingSlide.media.length - 1];
+                if ((lastMediaItem.time - durationDifference) >= 2000) {
+                  lastMediaItem.time = lastMediaItem.time - durationDifference;
+                } else {
+                  matchingSlide.media.forEach((mitem) => {
+                    mitem.time = matchingSlide.duration / matchingSlide.media.length;
+                  })
+                }
               }
             }
-          }
+            return cb();
+          })
         })
       }
     })
   }
-  slidesHtml.forEach(slide => {
-    if (!slide.media || slide.media.length === 0) {
-      slide.media = [{
-        url: DEFAUL_IMAGE_URL,
-        type: 'image',
-        time: slide.duration,
-      }];
-    } else {
-      slide.media.forEach((mitem) => {
-        if (process.env.NODE_ENV !== 'production') {
-          verifySlidesMediaFuncArray.push(verifyMedia(slide, mitem));
-        }
-      })
-    }
-  })
-  console.log('verifying media');
-  async.parallelLimit(async.reflectAll(verifySlidesMediaFuncArray), 1, (err, result) => {
-    if (err) {
-      console.log('error verifying slides media');
-    }
-    // Download media and audio for local use
-    const downAudioFuncArray = [];
+  async.parallelLimit(humanvoiceFuncArray, 2, () => {
 
-    slidesHtml.forEach((slide) => {
-      downAudioFuncArray.push(downloadSlideAudio(slide));
-    })
-    console.log('downloading audios');
-
-    async.parallelLimit(async.reflectAll(downAudioFuncArray), 2, (err, value) => {
-      console.log('start time', new Date())
-        if (err) {
-        console.log('error fetching tmp medias', err);
-      }
-
-      let videoDerivatives = [];
-
-      slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
-        function convert(cb) {
-          const audioUrl = slide.tmpAudio || `https:${slide.audio}`;
-          const convertCallback = (err, result) => {
-            if (err) {
-              console.log('error in async ', err);
-              return cb(err);
-            }
-            // Clear tmp media and audio if exists
-            if (slide.tmpAudio) {
-              fs.unlink(slide.tmpAudio, () => {});
-            }
-            let { videoPath, videoDerivative } = result;
-            if (videoDerivative) {
-              videoDerivatives = videoDerivatives.concat(videoDerivative)
-            }
-            const finalizeSlideFunc = [];
-            slide.video = videoPath;
-            utils.getRemoteFileDuration(videoPath, (err, duration) => {
-              // Add fade effect only to slides having at least 2 seconds of content
-              if (!err && Math.floor(duration) > 2) {
-                finalizeSlideFunc.push((finalizeSlideCB) => {
-                  addFadeEffects(videoPath, FADE_EFFECT_DURATION, (err, fadedVideo) => {
-                    if (err) {
-                      console.log('error adding fade effects', err);
-                      slide.video = videoPath;
-                    } else if (fadedVideo && fs.existsSync(fadedVideo)) {
-                      fs.unlinkSync(videoPath);
-                      slide.video = fadedVideo;
-                    }
-                    finalizeSlideCB();
-                  })
-                })
-              }
-              finalizeSlideFunc.push((finalizeSlideCB) => {
-                progress += (1 / article.slides.length) * 100;
-                updateProgress(videoId, progress);
-                
-                console.log(`Progress ####### ${progress} ######`);
-                finalizeSlideCB();
-                return cb(null, {
-                  fileName: slide.video,
-                  index
-                });
-              })
-              async.series(finalizeSlideFunc, () => {});
-            })
-          }
-          // End convert callback
-          
-          if (!slide.media) {
-            slide.media = [{
-              url: DEFAUL_IMAGE_URL,
-              type: 'image',
-            }];
-          }
-          convertMedias(slide.media, audioUrl, slide.position, convertCallback);
-        }
-        
-        convertFuncArray.push(convert);
-      })
-      
-      async.parallelLimit(convertFuncArray, SLIDE_CONVERT_PER_TIME, (err, results) => {
-        if (err) {
-          VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
-          })
-          return callback(err);
-        }
-        updateProgress(videoId, 100);
-
-        // Set video derivatives to be put in the licence info
-        VideoModel.findByIdAndUpdate(videoId, { $set: { derivatives: videoDerivatives } }, (err) => {
-          if (err) {
-            console.log('error saving video derivatives');
+    slidesHtml.forEach(slide => {
+      if (!slide.media || slide.media.length === 0) {
+        slide.media = [{
+          url: DEFAUL_IMAGE_URL,
+          type: 'image',
+          time: slide.duration,
+        }];
+      } else {
+        slide.media.forEach((mitem) => {
+          if (process.env.NODE_ENV !== 'production') {
+            verifySlidesMediaFuncArray.push(verifyMedia(slide, mitem));
           }
         })
+      }
+    })
+    console.log('verifying media');
+    async.parallelLimit(async.reflectAll(verifySlidesMediaFuncArray), 1, (err, result) => {
+      if (err) {
+        console.log('error verifying slides media');
+      }
+      // Download media and audio for local use
+      const downAudioFuncArray = [];
 
-        results = results.sort((a, b) => a.index - b.index);
-        // Generate the user credits slides
-        utils.generateCreditsVideos(article, video, (err, creditsVideos) => {
+      slidesHtml.forEach((slide) => {
+        downAudioFuncArray.push(downloadSlideAudio(slide));
+      })
+      console.log('downloading audios');
+
+      async.parallelLimit(async.reflectAll(downAudioFuncArray), 2, (err, value) => {
+        console.log('start time', new Date())
           if (err) {
-            console.log('error creating credits videos', err);
-          }
-          // Generate the article references slides
-          utils.generateReferencesVideos(article.title, article.wikiSource, article.referencesList,{
-            onProgress: (progress) => {
-              if (progress && progress !== 'null') {
-                VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: progress }}, (err, result) => {
-                })
-              }
-            },
-            
-            onEnd: (err, referencesVideos) => {
-              // Considere progress done
-              VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: 100 }}, (err, result) => {
-              })
+          console.log('error fetching tmp medias', err);
+        }
 
+        let videoDerivatives = [];
+
+        slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
+          function convert(cb) {
+            const audioUrl = slide.tmpAudio || `https:${slide.audio}`;
+            const convertCallback = (err, result) => {
               if (err) {
-                console.log('error creating references videos', err);
+                console.log('error in async ', err);
+                return cb(err);
               }
-
-              let finalVideos = [];
-              if (results) {
-                finalVideos = finalVideos.concat(results);
+              // Clear tmp media and audio if exists
+              if (slide.tmpAudio) {
+                fs.unlink(slide.tmpAudio, () => {});
               }
-              // Add Share video
-              finalVideos.push({ fileName: 'cc_share.webm', });
-              if (creditsVideos && creditsVideos.length > 0) {
-                finalVideos = finalVideos.concat(creditsVideos);
+              let { videoPath, videoDerivative } = result;
+              if (videoDerivative) {
+                videoDerivatives = videoDerivatives.concat(videoDerivative)
               }
-              if (referencesVideos && referencesVideos.length > 0) {
-                finalVideos = finalVideos.concat(referencesVideos);
-              }
-              
-              combineVideos(finalVideos, false, {
-                onProgress: (progress) => {
-                  if (progress && progress !== 'null') {
-                    VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: progress }}, (err, result) => {
-                    })
-                  }
-                },
-                
-                onEnd: (err, videoPath) => {
-                  if (err) {
-                    console.log(err);
-                    VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
-                    })
-                    return callback(err);
-                  }
-                  
-                  VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: 100, wrapupVideoProgress: 20 }}, (err, result) => {
-                  })
-                  
-                  const subtitledSlides = JSON.parse(JSON.stringify(slidesHtml));
-                  // If we have human voice, use the user's translation as the subtitles
-                  if (video.humanvoice && video.humanvoice.translatedSlides && video.lang !== article.lang) {
-                    video.humanvoice.translatedSlides.forEach((slide) => {
-                      if (subtitledSlides[slide.position]) {
-                        subtitledSlides[slide.position].text = slide.text;
+              const finalizeSlideFunc = [];
+              slide.video = videoPath;
+              utils.getRemoteFileDuration(videoPath, (err, duration) => {
+                // Add fade effect only to slides having at least 2 seconds of content
+                if (!err && Math.floor(duration) > 2) {
+                  finalizeSlideFunc.push((finalizeSlideCB) => {
+                    addFadeEffects(videoPath, FADE_EFFECT_DURATION, (err, fadedVideo) => {
+                      if (err) {
+                        console.log('error adding fade effects', err);
+                        slide.video = videoPath;
+                      } else if (fadedVideo && fs.existsSync(fadedVideo)) {
+                        fs.unlinkSync(videoPath);
+                        slide.video = fadedVideo;
                       }
-                    });
-                  }
-                  subtitles.generateSrtSubtitles(subtitledSlides, 1, (err, subs) => {
-                    const cbResult = { videoPath };
-                    if (err) {
-                      console.log('error generating subtitles file', err);
-                    }
-
-                    if (subs) {
-                      cbResult.subtitles = subs;
-                    }
-                    
-                    VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: 70 }}, (err, result) => {
+                      finalizeSlideCB();
                     })
-                    // Cleanup
-                    slidesHtml.forEach(slide => {
-                      if (slide.video && fs.existsSync(slide.video)) {
-                        fs.unlink(slide.video, () => {});
-                      }
-                    })
-                    
-                    if (referencesVideos) {
-                      referencesVideos.forEach(video => fs.existsSync(video.fileName) && fs.unlink(video.fileName, () => {}));
-                    }
-                    
-                    if (creditsVideos) {
-                      creditsVideos.forEach(video => fs.existsSync(video.fileName) && fs.unlink(video.fileName, () => {}));
-                    }
-                    console.log('end time', new Date())
-                    return callback(null, cbResult);
                   })
                 }
+                finalizeSlideFunc.push((finalizeSlideCB) => {
+                  progress += (1 / article.slides.length) * 100;
+                  updateProgress(videoId, progress);
+                  
+                  console.log(`Progress ####### ${progress} ######`);
+                  finalizeSlideCB();
+                  return cb(null, {
+                    fileName: slide.video,
+                    index
+                  });
+                })
+                async.series(finalizeSlideFunc, () => {});
               })
             }
+            // End convert callback
+            
+            if (!slide.media) {
+              slide.media = [{
+                url: DEFAUL_IMAGE_URL,
+                type: 'image',
+              }];
+            }
+            convertMedias(slide.media, audioUrl, slide.position, convertCallback);
+          }
+          
+          convertFuncArray.push(convert);
+        })
+        
+        async.parallelLimit(convertFuncArray, SLIDE_CONVERT_PER_TIME, (err, results) => {
+          if (err) {
+            VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
+            })
+            return callback(err);
+          }
+          updateProgress(videoId, 100);
+
+          // Set video derivatives to be put in the licence info
+          VideoModel.findByIdAndUpdate(videoId, { $set: { derivatives: videoDerivatives } }, (err) => {
+            if (err) {
+              console.log('error saving video derivatives');
+            }
+          })
+
+          results = results.sort((a, b) => a.index - b.index);
+          // Generate the user credits slides
+          utils.generateCreditsVideos(article, video, (err, creditsVideos) => {
+            if (err) {
+              console.log('error creating credits videos', err);
+            }
+            // Generate the article references slides
+            utils.generateReferencesVideos(article.title, article.wikiSource, article.referencesList,{
+              onProgress: (progress) => {
+                if (progress && progress !== 'null') {
+                  VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: progress }}, (err, result) => {
+                  })
+                }
+              },
+              
+              onEnd: (err, referencesVideos) => {
+                // Considere progress done
+                VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: 100 }}, (err, result) => {
+                })
+
+                if (err) {
+                  console.log('error creating references videos', err);
+                }
+
+                let finalVideos = [];
+                if (results) {
+                  finalVideos = finalVideos.concat(results);
+                }
+                // Add Share video
+                finalVideos.push({ fileName: 'cc_share.webm', });
+                if (creditsVideos && creditsVideos.length > 0) {
+                  finalVideos = finalVideos.concat(creditsVideos);
+                }
+                if (referencesVideos && referencesVideos.length > 0) {
+                  finalVideos = finalVideos.concat(referencesVideos);
+                }
+                
+                combineVideos(finalVideos, false, {
+                  onProgress: (progress) => {
+                    if (progress && progress !== 'null') {
+                      VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: progress }}, (err, result) => {
+                      })
+                    }
+                  },
+                  
+                  onEnd: (err, videoPath) => {
+                    if (err) {
+                      console.log(err);
+                      VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
+                      })
+                      return callback(err);
+                    }
+                    
+                    VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: 100, wrapupVideoProgress: 20 }}, (err, result) => {
+                    })
+                    
+                    const subtitledSlides = JSON.parse(JSON.stringify(slidesHtml));
+                    // If we have human voice, use the user's translation as the subtitles
+                    if (video.humanvoice && video.humanvoice.translatedSlides && video.lang !== article.lang) {
+                      video.humanvoice.translatedSlides.forEach((slide) => {
+                        if (subtitledSlides[slide.position]) {
+                          subtitledSlides[slide.position].text = slide.text;
+                        }
+                      });
+                    }
+                    subtitles.generateSrtSubtitles(subtitledSlides, 1, (err, subs) => {
+                      const cbResult = { videoPath };
+                      if (err) {
+                        console.log('error generating subtitles file', err);
+                      }
+
+                      if (subs) {
+                        cbResult.subtitles = subs;
+                      }
+                      
+                      VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: 70 }}, (err, result) => {
+                      })
+                      // Cleanup
+                      slidesHtml.forEach(slide => {
+                        if (slide.video && fs.existsSync(slide.video)) {
+                          fs.unlink(slide.video, () => {});
+                        }
+                      })
+                      
+                      if (referencesVideos) {
+                        referencesVideos.forEach(video => fs.existsSync(video.fileName) && fs.unlink(video.fileName, () => {}));
+                      }
+                      
+                      if (creditsVideos) {
+                        creditsVideos.forEach(video => fs.existsSync(video.fileName) && fs.unlink(video.fileName, () => {}));
+                      }
+                      console.log('end time', new Date())
+                      return callback(null, cbResult);
+                    })
+                  }
+                })
+              }
+            })
           })
         })
       })
-    })
 
+    })
   })
 }
 
