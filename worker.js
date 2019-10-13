@@ -10,7 +10,7 @@ const cheerio = require('cheerio');
 const { imageToSilentVideo, videoToSilentVideo, gifToSilentVideo ,combineVideos, slowVideoRate, wavToWebm, addFadeEffects, addFadeInEffect, addFadeOutEffect, addAudioToVideo }  = require('./converter');
 const utils = require('./utils');
 const subtitles = require('./subtitles');
-const { DEFAUL_IMAGE_URL, SLIDE_CONVERT_PER_TIME, FADE_EFFECT_DURATION } = require('./constants');
+const { DEFAUL_IMAGE_URL, SLIDE_CONVERT_PER_TIME, FADE_EFFECT_DURATION, VIDEO_WIDTH, VIDEO_HEIGHT } = require('./constants');
 
 const UserModel = require('./models/User');
 const ArticleModel = require('./models/Article');
@@ -577,7 +577,19 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
         }
         console.log('converting submedia', slideMediaUrl, subtext)
         if (utils.getFileType(mitem.url) === 'image') {
-          imageToSilentVideo({ image: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, convertSingleCallback);
+          utils.getFileDimentions(slideMediaUrl, (err, dimentions) => {
+            if (err && !dimentions) {
+              console.log('error getting dimentions', err);
+              dimentions = `${VIDEO_WIDTH}x${VIDEO_HEIGHT}`;
+            }
+            // If the width is larger than the default video width
+            // get a thumbnail image instead
+            const imageWidth = parseInt(dimentions.split('x')[0]); 
+            if (imageWidth > VIDEO_WIDTH) {
+              slideMediaUrl = mitem.thumburl;  
+            }
+            imageToSilentVideo({ image: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, convertSingleCallback);
+          })
         } else if (utils.getFileType(mitem.url) === 'video') {
           videoToSilentVideo({ video: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, convertSingleCallback);
         } else if (utils.getFileType(mitem.url) === 'gif') {
