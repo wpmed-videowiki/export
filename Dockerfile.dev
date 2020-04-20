@@ -1,0 +1,7 @@
+FROM hassanamin994/node_ffmpeg
+WORKDIR /home/export
+COPY . .
+RUN npm install
+
+CMD ["npm", "run", "dev:server"]
+

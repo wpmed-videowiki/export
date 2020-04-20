@@ -7,7 +7,8 @@
     "start": "node index.js",
     "stop": "pm2 stop /^videowiki_converter_.*$/ && pm2 delete /^videowiki_converter_.*$/",
     "restart": "npm stop && npm start",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev:server": "nodemon worker.js en"
   },
   "author": "",
   "license": "ISC",
@@ -23,6 +24,7 @@
     "mongoose": "^5.4.0",
     "mongoose-long": "^0.2.1",
     "mp3-duration": "^1.1.0",
+    "nodemon": "^2.0.3",
     "pm2": "^3.5.1",
     "request": "^2.88.0",
     "srt-to-vtt": "^1.1.3",

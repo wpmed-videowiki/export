@@ -1,4 +1,8 @@
 require('dotenv').config({path: '.env'});
+
+const args = process.argv.slice(2);
+const lang = args[0];
+console.log('lang is', lang)
 const amqp = require('amqplib/callback_api');
 const fs = require('fs');
 const path = require('path');
@@ -17,8 +21,6 @@ const ArticleModel = require('./models/Article');
 const VideoModel = require('./models/Video');
 const HumanVoiceModel = require('./models/HumanVoice');
 
-const args = process.argv.slice(2);
-const lang = args[0];
 
 const DELETE_AWS_VIDEO = 'DELETE_AWS_VIDEO';
 const CONVERT_QUEUE = `CONVERT_ARTICLE_QUEUE_${lang}`;

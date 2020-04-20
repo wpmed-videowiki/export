@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { exec } = require('child_process');
-const langs = ['en', 'hi', 'es', 'ar', 'ja', 'uk', 'fr', 'or', 'te', 'gu', 'bn', 'pa', 'sat'];
+const langs = ['en', 'hi', 'es', 'ar', 'ja', 'uk', 'fr', 'or', 'te', 'gu', 'bn', 'pa', 'sat', 'sv', 'it'];
 const APP_DIRS = ['./tmp', './videos', './final'];
 
 // Create necessary file dirs 
