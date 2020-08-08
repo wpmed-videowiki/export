@@ -374,11 +374,57 @@ module.exports = {
         getProgressFromStdout(totalDuration, c, onProgress);
       })
     })
+  },
+
+  extractAudioFromVideo(videoPath, callback = () => {}) {
+    // check if the video has audio stream
+    // if so, extract the audio stream
+    // else, generate a silent audio file with the video duration
+    const cmd = `ffprobe -v error -select_streams a:0 -show_entries stream=duration -of default=noprint_wrappers=1 ${videoPath}`;
+    exec(cmd, (err, stdout) => {
+      if (err) return callback(err);
+      // Has audio stream, extract it!
+      if (stdout && stdout.trim()) {
+        const audioPath = path.join(__dirname, 'tmp', `${parseInt(Date.now() + Math.random() * 100000)}-extracted-audio.mp3`);
+        const cmd2 = `ffmpeg -y -i ${videoPath} ${audioPath}`;
+        exec(cmd2, (err) => {
+          if (err) return callback(err);
+          return callback(null, audioPath);
+        })
+      } else {
+        // Doesnt have audio stream, get the video duration and generate silent file
+        getRemoteFileDuration(videoPath, (err, duration) => {
+          if (err) return callback(err);
+          generateSilentAudio(duration, (err, audioPath) => {
+            if (err) return callback(err);
+            return callback(null, audioPath)
+          })
+        })
+      }
+    })
+  },
+
+  generateSilentAudio: generateSilentAudio,  
+  combineAudios(audios, callback = () => {}) {
+    const audioPath = path.join(__dirname, 'tmp', `${parseInt(Date.now() + Math.random() * 100000)}-combined-audio.mp3`);
+    const inputs = audios.reduce((acc, a) => acc + ` -i ${a}`, '')
+    const fcomplex  = audios.map((a, index) => `[${index}:0]`).join('')
+    const cmd = `ffmpeg${inputs} -filter_complex '${fcomplex}concat=n=${audios.length}:v=0:a=1[out]' -map '[out]' ${audioPath}`;
+    exec(cmd, (err) => {
+      if (err) return callback(err);
+      return callback(null, audioPath);
+    })
   }
-
-
 }
 
+function generateSilentAudio(durationInSeconds, callback = () => {}) {
+    const audioPath = path.join(__dirname, 'tmp', `${parseInt(Date.now() + Math.random() * 100000)}-silent-audio.mp3`);
+    const cmd = `ffmpeg -f lavfi -i anullsrc=r=44100:cl=mono -t ${durationInSeconds} -q:a 9 ${audioPath}`;
+    exec(cmd, (err) => {
+      if (err) return callback(err);
+      return callback(null, audioPath);
+    })
+  }
 function getProgressFromStdout(totalDuration, chunk, onProgress) {
   const re = /time=([0-9]+):([0-9]+):([0-9]+)/;
   const match = chunk.toString().match(re);

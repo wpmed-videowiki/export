@@ -11,7 +11,21 @@ const async = require('async');
 const mongoose = require('mongoose');
 const cheerio = require('cheerio');
 
-const { imageToSilentVideo, videoToSilentVideo, gifToSilentVideo ,combineVideos, slowVideoRate, wavToWebm, addFadeEffects, addFadeInEffect, addFadeOutEffect, addAudioToVideo }  = require('./converter');
+const {
+  imageToSilentVideo,
+  videoToSilentVideo,
+  gifToSilentVideo,
+  combineVideos,
+  slowVideoRate,
+  wavToWebm,
+  addFadeEffects,
+  addFadeInEffect,
+  addFadeOutEffect,
+  addAudioToVideo,
+  extractAudioFromVideo,
+  generateSilentAudio,
+  combineAudios,
+}  = require('./converter');
 const utils = require('./utils');
 const subtitles = require('./subtitles');
 const { DEFAUL_IMAGE_URL, SLIDE_CONVERT_PER_TIME, FADE_EFFECT_DURATION, VIDEO_WIDTH, VIDEO_HEIGHT } = require('./constants');
@@ -233,10 +247,72 @@ const downloadSlideAudio = slide => (cb) => {
   })
 }
 
+const generateSlideAudioFromMedia = slide => cb => {
+  console.log('=========================== generateSlideAudioFromMedia ==============================')
+  // loop over slide's media
+  // if the media item is video, extract it's audio
+  // if the media item is gif or image, generate silence audio with it's duration
+  // concat all audios
+  // cleanup tmp media audios
+  // assign to slide.tmpAudio and cb()
+  const generateMediaFuncArray = [];
+  const mediaAudiosPaths = [];
+
+  slide.media.forEach(mitem => {
+    generateMediaFuncArray.push((cb) => {
+      if (utils.getFileType(mitem.url) === 'video') {
+        extractAudioFromVideo(mitem.url, (err, audioPath) => {
+          console.log(err)
+          if (err) return cb(err);
+          mediaAudiosPaths.push(audioPath);
+          utils.getRemoteFileDuration(mitem.url, (err, duration) => {
+            console.log(err)
+            if (err) return cb(err);
+            mitem.time = duration * 1000;
+            cb()
+          })
+        })
+      } else if (['image', 'gif'].indexOf(utils.getFileType(mitem.url))) {
+        generateSilentAudio(5000, (err, audioPath) => {
+          console.log(err)
+          if (err) return cb(err);
+          mediaAudiosPaths.push(audioPath);
+          mitem.time = 5000;
+          cb();
+        })
+      } else {
+        console.log('Invalid media type')
+        return cb(new Error('Invalid media type' + mitem.url))
+      }
+    })
+  })
+
+  async.parallelLimit(generateMediaFuncArray, 1, (err) => {
+    console.log(err)
+    if (err) return cb(err);
+    console.log('================= combining audios ============================')
+    combineAudios(mediaAudiosPaths, (err, audioPath) => {
+     console.log(err) 
+      if (err) return cb(err);
+      mediaAudiosPaths.forEach(p => {
+        fs.unlink(p, (err) => {
+          if (err) {
+            console.log(err);
+          }
+        })
+      })
+      slide.tmpAudio = audioPath;
+      console.log('COMBINED AUDIO', audioPath, slide)
+      return cb()
+    })
+  })
+}
+
 function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   const convertFuncArray = [];
   let progress = 0;
-  const slidesHtml = article.slidesHtml.slice().filter(slide => slide.text && slide.audio);
+  // const slidesHtml = article.slidesHtml.slice().filter(slide => slide.text && slide.audio);
+  const slidesHtml = article.slidesHtml.slice();
   const verifySlidesMediaFuncArray = [];
 
   const humanvoiceFuncArray = [];
@@ -324,9 +400,14 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
       const downAudioFuncArray = [];
 
       slidesHtml.forEach((slide) => {
-        downAudioFuncArray.push(downloadSlideAudio(slide));
+        if (slide.audio) {
+          downAudioFuncArray.push(downloadSlideAudio(slide));
+        } else {
+          console.log('doesnt have audio, generating audio from media instead')
+          downAudioFuncArray.push(generateSlideAudioFromMedia(slide))
+        }
       })
-      console.log('downloading audios');
+      console.log('downloading audios', slidesHtml.length, slidesHtml);
 
       async.parallelLimit(async.reflectAll(downAudioFuncArray), 2, (err, value) => {
         console.log('start time', new Date())
@@ -338,7 +419,8 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
 
         slidesHtml.sort((a,b) => a.position - b.position).forEach((slide, index) => {
           function convert(cb) {
-            const audioUrl = slide.tmpAudio || `https:${slide.audio}`;
+            console.log('converting', slide.position)
+            const audioUrl = slide.tmpAudio ? slide.tmpAudio : (slide.audio ? `https:${slide.audio}` : '');
             const convertCallback = (err, result) => {
               if (err) {
                 console.log('error in async ', err);
