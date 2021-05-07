@@ -20,7 +20,7 @@
     "dotenv": "^6.2.0",
     "ejs": "^2.6.1",
     "html-to-image": "^0.1.0",
-    "lodash": "^4.17.11",
+    "lodash": "^4.17.21",
     "mongoose": "^5.4.0",
     "mongoose-long": "^0.2.1",
     "mp3-duration": "^1.1.0",
