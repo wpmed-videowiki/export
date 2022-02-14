@@ -8,7 +8,8 @@
     "stop": "pm2 stop /^videowiki_converter_.*$/ && pm2 delete /^videowiki_converter_.*$/",
     "restart": "npm stop && npm start",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev:server": "nodemon worker.js en"
+    "dev:server": "nodemon worker.js en",
+    "preinstall": "npx npm-force-resolutions"
   },
   "author": "",
   "license": "ISC",
