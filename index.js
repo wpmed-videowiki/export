@@ -20,6 +20,7 @@ const langs = [
   'kn',
   'ml',
   'ta',
+  'eu'
 ];
 const APP_DIRS = ['./tmp', './videos', './final'];
 
