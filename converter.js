@@ -295,12 +295,12 @@ module.exports = {
     })
   },
   
-  addAudioToVideo(video, audio, outputPath, callback = () => {}) {
+  addAudioToVideo(video, audio, outputPath, options, callback = () => {}) {
     getRemoteFileDuration(audio, (err, duration) => {
       let audioTrim = '';
       if (err || !duration) {
         console.log('error getting audio duration', err);
-      } else {
+      } else if (options.trimVideo) {
         audioTrim = ` -t ${duration} `;
       }
       const command = `ffmpeg -y -i ${video} -i ${audio} -map 0:v:0 -map 1:a:0 ${audioTrim} ${outputPath}`;

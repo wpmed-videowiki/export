@@ -28,7 +28,7 @@ const {
 }  = require('./converter');
 const utils = require('./utils');
 const subtitles = require('./subtitles');
-const { DEFAUL_IMAGE_URL, SLIDE_CONVERT_PER_TIME, FADE_EFFECT_DURATION, VIDEO_WIDTH, VIDEO_HEIGHT } = require('./constants');
+const { DEFAUL_IMAGE_URL, SLIDE_CONVERT_PER_TIME, FADE_EFFECT_DURATION, VIDEO_WIDTH, VIDEO_HEIGHT, CUSTOM_TEMPLATES } = require('./constants');
 
 const UserModel = require('./models/User');
 const ArticleModel = require('./models/Article');
@@ -474,7 +474,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                 type: 'image',
               }];
             }
-            convertMedias(slide.media, audioUrl, slide.position, convertCallback);
+            convertMedias(slide.media, slide.templates, audioUrl, slide.position, convertCallback);
           }
           
           convertFuncArray.push(convert);
@@ -601,9 +601,11 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   })
 }
 
-function convertMedias(medias, audio, slidePosition, callback = () => {}) {
+function convertMedias(medias, templates, audio, slidePosition, callback = () => {}) {
   const convertMediaFuncArray = [];
   let videoDerivative = [];
+  const trimVideo = !(templates && templates.some(template => template.toLowerCase() === CUSTOM_TEMPLATES.PLAYALL.toLowerCase()));
+
   medias.forEach((mitem, index) => {
     convertMediaFuncArray.push((singleCB) => {
       const fileName = `videos/video-${parseInt(Date.now() + Math.random() * 100000)}.webm`;
@@ -631,11 +633,11 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
         }
         
         let slideMediaUrl = mitem.tmpUrl || mitem.origianlUrl || mitem.url;
-       
         if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
           slideMediaUrl = mitem.thumburl || mitem.url;
         }
         const convertSingleCallback = function convertSingleCallback(err, fileName) {
+            console.log('After convert to silent', fileName)
             if (err) return singleCB(err);
             // Dont add extra fade effect for a single media item
             if (medias.length === 1) {
@@ -675,7 +677,11 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
             imageToSilentVideo({ image: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, convertSingleCallback);
           })
         } else if (utils.getFileType(mitem.url) === 'video') {
-          videoToSilentVideo({ video: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, convertSingleCallback);
+          let videoDuration = mitem.time / 1000
+          if (!trimVideo) {
+            videoDuration = mitem.duration
+          }
+          videoToSilentVideo({ video: slideMediaUrl, subtext, duration: videoDuration, outputPath: fileName }, convertSingleCallback);
         } else if (utils.getFileType(mitem.url) === 'gif') {
           gifToSilentVideo({ gif: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName}, convertSingleCallback);
         } else {
@@ -694,14 +700,14 @@ function convertMedias(medias, audio, slidePosition, callback = () => {}) {
       combineVideos(slideVideos, true, {
         onEnd: (err, videoPath) => {
           if (err) return callback(err);
-          return addAudioToVideo(videoPath, audio, finalSlideVidPath, (err, videoPath) => {
+          return addAudioToVideo(videoPath, audio, finalSlideVidPath, { trimVideo }, (err, videoPath) => {
             if (err) return callback(err);
             return callback(null, { videoPath: finalSlideVidPath, videoDerivative });
           });
         },
       })
     } else {
-      addAudioToVideo(slideVideos[0].fileName, audio, finalSlideVidPath, (err, videoPath) => {
+      addAudioToVideo(slideVideos[0].fileName, audio, finalSlideVidPath, { trimVideo }, (err, videoPath) => {
         if (err) return callback(err);
         return callback(null, { videoPath: finalSlideVidPath, videoDerivative });
       });

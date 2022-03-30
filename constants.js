@@ -2,6 +2,9 @@ const VIDEO_HEIGHT = 720;
 const VIDEO_WIDTH = 1280;
 const DAR = '16/9';
 const SAR = '1/1';
+const CUSTOM_TEMPLATES = {
+  PLAYALL: '{{VW Playall}}'
+}
 
 module.exports = {
   DAR,
@@ -14,4 +17,5 @@ module.exports = {
   DEFAUL_IMAGE_URL: 'https://s3-eu-west-1.amazonaws.com/vwconverter/static/rsz_1image_2.png',
   SLIDE_CONVERT_PER_TIME: 2,
   FADE_EFFECT_DURATION: 0.75,
+  CUSTOM_TEMPLATES
 }
