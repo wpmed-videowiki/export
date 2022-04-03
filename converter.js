@@ -255,6 +255,7 @@ module.exports = {
     getVideoNumberOfFrames(video, (err, framesInfo) => {
       if (err) return callback(err);
       if (!framesInfo) return callback(new Error('Something went wrong getting number of frames'));
+      console.log({ framesInfo })
       const command = `ffmpeg -y -i ${video} -vf 'fade=in:0:${Math.ceil(framesInfo.frameRate * fadeDuration)},fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
       // const command = `ffmpeg -y -i ${video} -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
       exec(command, (err) => {
@@ -270,6 +271,7 @@ module.exports = {
     getVideoNumberOfFrames(video, (err, framesInfo) => {
       if (err) return callback(err);
       if (!framesInfo) return callback(new Error('Something went wrong getting number of frames'));
+      console.log({ framesInfo })
       const command = `ffmpeg -y -i ${video} -vf 'fade=in:0:${Math.ceil(framesInfo.frameRate * fadeDuration)}' ${fadedPath}`;
       // const command = `ffmpeg -y -i ${video} -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
       exec(command, (err) => {
@@ -300,15 +302,34 @@ module.exports = {
       let audioTrim = '';
       if (err || !duration) {
         console.log('error getting audio duration', err);
-      } else if (options.trimVideo) {
-        audioTrim = ` -t ${duration} `;
+        return callback(err);
       }
-      const command = `ffmpeg -y -i ${video} -i ${audio} -map 0:v:0 -map 1:a:0 ${audioTrim} ${outputPath}`;
-      // console.log('command', command);
-      exec(command, (err, stdout, stderr) => {
-        if (err) return callback(err);
-        if (!fs.existsSync(outputPath)) return callback(new Error('Something went wrong'));
-        return callback(null, outputPath);
+
+      if (options.trimVideo) {
+        audioTrim = ` -t ${duration} `;
+        const command = `ffmpeg -y -i ${video} -i ${audio} -map 0:v:0 -map 1:a:0 ${audioTrim} ${outputPath}`;
+        // console.log('command', command);
+        return exec(command, (err, stdout, stderr) => {
+          if (err) return callback(err);
+          if (!fs.existsSync(outputPath)) return callback(new Error('Something went wrong'));
+          return callback(null, outputPath);
+        })
+      }
+
+      // expand audio to match video duration
+      getRemoteFileDuration(video, (err, videoDuration) => {
+        const tmpAudioPath = `tmp/${Date.now()}.mp3`;
+        const expandCMD = `ffmpeg -i ${audio} -vcodec copy -af apad -ss 00:00:00.000 -t ${new Date(videoDuration * 1000).toISOString().substr(11,8)} ${tmpAudioPath}`
+        exec(expandCMD, (err) => {
+          if (err) return callback(err);
+          exec(`ffmpeg -y -i ${video} -i ${tmpAudioPath} -map 0:v:0 -map 1:a:0 ${outputPath}`, (err) => {
+            if (err) return callback(err);
+            if (!fs.existsSync(outputPath)) return callback(new Error('Something went wrong'));
+            
+            fs.unlink(tmpAudioPath, () => {});
+            return callback(null, outputPath);
+          })
+        })
       })
     })
   },
