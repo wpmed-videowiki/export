@@ -11,6 +11,16 @@ const async = require('async');
 const mongoose = require('mongoose');
 const cheerio = require('cheerio');
 
+// Check if the necessary directories exist
+const APP_DIRS = ['./tmp', './videos', './final'];
+
+// Create necessary file dirs
+APP_DIRS.forEach((dir) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir);
+  }
+});
+
 const {
   imageToSilentVideo,
   videoToSilentVideo,
@@ -40,7 +50,10 @@ const DELETE_AWS_VIDEO = 'DELETE_AWS_VIDEO';
 const CONVERT_QUEUE = `CONVERT_ARTICLE_QUEUE_${lang}`;
 const UPDLOAD_CONVERTED_TO_COMMONS_QUEUE = `UPDLOAD_CONVERTED_TO_COMMONS_QUEUE_${lang}`;
 
-const DB_CONNECTION = `${process.env.DB_HOST_URL}-${lang}`;
+
+const dbConnectionParts = process.env.DB_HOST_URL.split('?');
+const DB_CONNECTION = `${dbConnectionParts[0]}-${lang}?${dbConnectionParts[1] || ''}`;
+
 // const DB_CONNECTION = 'mongodb://localhost/videowiki-en'
 console.log('connecting to database ', DB_CONNECTION);
 mongoose.connect(DB_CONNECTION)
