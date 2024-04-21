@@ -1,0 +1,173 @@
+
+version: '3'
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USERNAME}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+
+  videowiki_converter_en:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "en"]
+
+  videowiki_converter_hi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "hi"]
+
+  videowiki_converter_es:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "es"]
+
+  videowiki_converter_ar:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "ar"]
+
+  videowiki_converter_ja:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "ja"]
+
+  videowiki_converter_uk:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "uk"]
+
+  videowiki_converter_fr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "fr"]
+
+  videowiki_converter_or:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "or"]
+
+  videowiki_converter_te:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "te"]
+
+  videowiki_converter_gu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "gu"]
+
+  videowiki_converter_bn:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "bn"]
+
+  videowiki_converter_pa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "pa"]
+
+  videowiki_converter_sat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "sat"]
+
+  videowiki_converter_sv:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "sv"]
+
+  videowiki_converter_it:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "it"]
+
+  videowiki_converter_in:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "in"]
+
+  videowiki_converter_kn:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "kn"]
+
+  videowiki_converter_ml:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "ml"]
+
+  videowiki_converter_ta:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "ta"]
+
+  videowiki_converter_eu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - rabbitmq
+    command: ["node", "worker.js", "eu"]
+
