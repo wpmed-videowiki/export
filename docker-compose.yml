@@ -15,6 +15,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "en"]
@@ -23,6 +24,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "hi"]
@@ -31,6 +33,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "es"]
@@ -39,6 +42,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "ar"]
@@ -47,6 +51,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "ja"]
@@ -55,6 +60,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "uk"]
@@ -63,6 +69,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "fr"]
@@ -71,6 +78,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "or"]
@@ -79,6 +87,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "te"]
@@ -87,6 +96,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "gu"]
@@ -95,6 +105,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "bn"]
@@ -103,6 +114,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "pa"]
@@ -111,6 +123,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "sat"]
@@ -119,6 +132,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "sv"]
@@ -127,6 +141,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "it"]
@@ -135,6 +150,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "in"]
@@ -143,6 +159,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "kn"]
@@ -151,6 +168,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "ml"]
@@ -159,6 +177,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "ta"]
@@ -167,6 +186,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "eu"]

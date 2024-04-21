@@ -44,6 +44,7 @@ ${langs
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     depends_on:
       - rabbitmq
     command: ["node", "worker.js", "${lang}"]
