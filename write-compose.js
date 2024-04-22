@@ -28,25 +28,26 @@ const langs = [
 const content = `
 version: '3'
 services:
-  rabbitmq:
-    image: rabbitmq:3-management
-    environment:
-      - RABBITMQ_DEFAULT_USER=\${RABBITMQ_USERNAME}
-      - RABBITMQ_DEFAULT_PASS=\${RABBITMQ_PASSWORD}
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-
-${langs
-  .map(
-    (lang) => `
-  videowiki_converter_${lang}:
+  converter_base_img:
     build:
       context: .
       dockerfile: Dockerfile
+    command: ["echo", "Base image build done"]
+${langs
+  .map(
+    (lang, index) => `
+  videowiki_converter_${lang}:
+    extends:
+        service: converter_base_img
     restart: unless-stopped
+    ${
+      index === 0
+        ? ""
+        : `
     depends_on:
-      - rabbitmq
+        - videowiki_converter_${langs[index - 1]}}
+    `
+    }
     command: ["node", "worker.js", "${lang}"]
 `
   )
