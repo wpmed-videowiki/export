@@ -45,7 +45,7 @@ ${langs
         ? ""
         : `
     depends_on:
-        - videowiki_converter_${langs[index - 1]}}
+        - videowiki_converter_${langs[index - 1]}
     `
     }
     command: ["node", "worker.js", "${lang}"]

@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_en}
+        - videowiki_converter_en
     
     command: ["node", "worker.js", "hi"]
 
@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_hi}
+        - videowiki_converter_hi
     
     command: ["node", "worker.js", "es"]
 
@@ -40,7 +40,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_es}
+        - videowiki_converter_es
     
     command: ["node", "worker.js", "ar"]
 
@@ -50,7 +50,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_ar}
+        - videowiki_converter_ar
     
     command: ["node", "worker.js", "ja"]
 
@@ -60,7 +60,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_ja}
+        - videowiki_converter_ja
     
     command: ["node", "worker.js", "uk"]
 
@@ -70,7 +70,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_uk}
+        - videowiki_converter_uk
     
     command: ["node", "worker.js", "fr"]
 
@@ -80,7 +80,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_fr}
+        - videowiki_converter_fr
     
     command: ["node", "worker.js", "or"]
 
@@ -90,7 +90,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_or}
+        - videowiki_converter_or
     
     command: ["node", "worker.js", "te"]
 
@@ -100,7 +100,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_te}
+        - videowiki_converter_te
     
     command: ["node", "worker.js", "gu"]
 
@@ -110,7 +110,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_gu}
+        - videowiki_converter_gu
     
     command: ["node", "worker.js", "bn"]
 
@@ -120,7 +120,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_bn}
+        - videowiki_converter_bn
     
     command: ["node", "worker.js", "pa"]
 
@@ -130,7 +130,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_pa}
+        - videowiki_converter_pa
     
     command: ["node", "worker.js", "sat"]
 
@@ -140,7 +140,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_sat}
+        - videowiki_converter_sat
     
     command: ["node", "worker.js", "sv"]
 
@@ -150,7 +150,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_sv}
+        - videowiki_converter_sv
     
     command: ["node", "worker.js", "it"]
 
@@ -160,7 +160,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_it}
+        - videowiki_converter_it
     
     command: ["node", "worker.js", "in"]
 
@@ -170,7 +170,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_in}
+        - videowiki_converter_in
     
     command: ["node", "worker.js", "kn"]
 
@@ -180,7 +180,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_kn}
+        - videowiki_converter_kn
     
     command: ["node", "worker.js", "ml"]
 
@@ -190,7 +190,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_ml}
+        - videowiki_converter_ml
     
     command: ["node", "worker.js", "ta"]
 
@@ -200,7 +200,7 @@ services:
     restart: unless-stopped
     
     depends_on:
-        - videowiki_converter_ta}
+        - videowiki_converter_ta
     
     command: ["node", "worker.js", "eu"]
 
