@@ -1,5 +1,7 @@
-FROM hassanamin994/node_ffmpeg:6
+FROM node:18.18.0
 WORKDIR /home/export
+RUN apt update -y  
+RUN apt install ffmpeg -y
 COPY . .
 RUN npm install
 
