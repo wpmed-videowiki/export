@@ -55,7 +55,6 @@ const dbConnectionParts = process.env.DB_HOST_URL.split('?');
 const DB_CONNECTION = `${dbConnectionParts[0]}-${lang}?${dbConnectionParts[1] || ''}`;
 
 // const DB_CONNECTION = 'mongodb://localhost/videowiki-en'
-console.log('connecting to database ', DB_CONNECTION);
 mongoose.connect(DB_CONNECTION)
 let convertChannel;
 amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
@@ -82,24 +81,14 @@ function convertQueueCallback(msg) {
   .findById(videoId)
   .populate('humanvoice')
   .populate('user')
-  .exec((err, video) => {
-    if (err) {
-      updateStatus(videoId, 'failed');
-      console.log('error retrieving video', err);
-      return convertChannel.ack(msg);
-    }
+  .exec().then((video) => {
     if (!video) {
       console.log('invalid video id');
       updateStatus(videoId, 'failed');          
       return convertChannel.ack(msg);
     }
     console.log('video is ', video);
-    ArticleModel.findOne({title: video.title, wikiSource: video.wikiSource, published: true}, (err, article) => {
-      if (err) {
-        updateStatus(videoId, 'failed');
-        console.log('error fetching article ', err);
-        return convertChannel.ack(msg);
-      }
+    ArticleModel.findOne({title: video.title, wikiSource: video.wikiSource, published: true}).then((article) => {
       console.log('converting article ', article.title)
 
       // Update status
@@ -138,12 +127,16 @@ function convertQueueCallback(msg) {
                   ...uploadSubtitlesResult
                 }
               }
-              VideoModel.findByIdAndUpdate(videoId, { $set: videoUpdate }, { new: true }, (err, result) => {
+              VideoModel.findByIdAndUpdate(videoId, { $set: videoUpdate }, { new: true }).then((result) => {
+                console.log('Done!', result)
+              })
+              .catch(err => {
                 if (err) {
                   updateStatus(videoId, 'failed');                  
                   console.log(err);
                 }
-                console.log('Done!', result)
+              })
+              .finally(() => {
                 convertChannel.ack(msg);
                 updateProgress(videoId, 100);
                 convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
@@ -157,12 +150,16 @@ function convertQueueCallback(msg) {
 
           } else {
 
-            VideoModel.findByIdAndUpdate(videoId, { $set: videoUpdate }, { new: true }, (err, result) => {
+            VideoModel.findByIdAndUpdate(videoId, { $set: videoUpdate }, { new: true }).then((result) => {
+              console.log('Done!', result);
+            })
+            .catch(err => {
               if (err) {
                 updateStatus(videoId, 'failed');                  
                 console.log(err);
               }
-              console.log('Done!', result);
+            })
+            .finally(() => {
               convertChannel.ack(msg);
               updateProgress(videoId, 100);
               convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
@@ -173,6 +170,20 @@ function convertQueueCallback(msg) {
         })
       })
     })
+    .catch(err => {
+      if (err) {
+        updateStatus(videoId, 'failed');
+        console.log('error fetching article ', err);
+        return convertChannel.ack(msg);
+      }
+    })
+  })
+  .catch(err => {
+    if (err) {
+      updateStatus(videoId, 'failed');
+      console.log('error retrieving video', err);
+      return convertChannel.ack(msg);
+    }
   })
 
 }
@@ -180,11 +191,7 @@ function convertQueueCallback(msg) {
 function deleteAWSVideoCallback(msg) {
   const { videoId } = JSON.parse(msg.content.toString());
 
-  VideoModel.findById(videoId, (err, video) => {
-    if (err) {
-      console.log('error fetching video ', err, videoId);
-      return;
-    }
+  VideoModel.findById(videoId).then((video) => {
     if (!video) {
       console.log('invalid video id ', videoId);
       return;
@@ -199,10 +206,19 @@ function deleteAWSVideoCallback(msg) {
           return;
         }
         console.log('successfully delete video from s3', result);
-        VideoModel.findByIdAndUpdate(videoId, { $unset: { url: true }}, (err, result) => {
-          console.log(err, result);
+        VideoModel.findByIdAndUpdate(videoId, { $unset: { url: true }}).then((result) => {
+          console.log(result);
+        })
+        .catch(err => {
+          console.log(err);
         })
       })
+    }
+  })
+  .catch(err => {
+    if (err) {
+      console.log('error fetching video ', err, videoId);
+      return;
     }
   })
 }
@@ -495,14 +511,17 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
         
         async.parallelLimit(convertFuncArray, SLIDE_CONVERT_PER_TIME, (err, results) => {
           if (err) {
-            VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
+            VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}).then(() => {
             })
+            .catch(err => {})
             return callback(err);
           }
           updateProgress(videoId, 100);
 
           // Set video derivatives to be put in the licence info
-          VideoModel.findByIdAndUpdate(videoId, { $set: { derivatives: videoDerivatives } }, (err) => {
+          VideoModel.findByIdAndUpdate(videoId, { $set: { derivatives: videoDerivatives } }).then(() => {
+          })
+          .catch(err => {
             if (err) {
               console.log('error saving video derivatives');
             }
@@ -518,15 +537,17 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
             utils.generateReferencesVideos(article.title, article.wikiSource, article.referencesList,{
               onProgress: (progress) => {
                 if (progress && progress !== 'null') {
-                  VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: progress }}, (err, result) => {
+                  VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: progress }}).then((result) => {
+                  })
+                  .catch(err => {
                   })
                 }
               },
               
               onEnd: (err, referencesVideos) => {
                 // Considere progress done
-                VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: 100 }}, (err, result) => {
-                })
+                VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: 100 }}).then((result) => {
+                }).catch(err => {})
 
                 if (err) {
                   console.log('error creating references videos', err);
@@ -548,21 +569,21 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                 combineVideos(finalVideos, false, {
                   onProgress: (progress) => {
                     if (progress && progress !== 'null') {
-                      VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: progress }}, (err, result) => {
-                      })
+                      VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: progress }}).then(() => {
+                      }).catch(err => {})
                     }
                   },
                   
                   onEnd: (err, videoPath) => {
                     if (err) {
                       console.log(err);
-                      VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}, (err, result) => {
-                      })
+                      VideoModel.findByIdAndUpdate(videoId, {$set: { status: 'failed' }}).then(() => {
+                      }).catch(err => {})
                       return callback(err);
                     }
                     
-                    VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: 100, wrapupVideoProgress: 20 }}, (err, result) => {
-                    })
+                    VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: 100, wrapupVideoProgress: 20 }}).then(() => {
+                    }).catch(err => {})
                     
                     const subtitledSlides = JSON.parse(JSON.stringify(slidesHtml));
                     // If we have human voice, use the user's translation as the subtitles
@@ -583,8 +604,8 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                         cbResult.subtitles = subs;
                       }
                       
-                      VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: 70 }}, (err, result) => {
-                      })
+                      VideoModel.findByIdAndUpdate(videoId, {$set: { wrapupVideoProgress: 70 }}).then(() => {
+                      }).catch(err => {});
                       // Cleanup
                       slidesHtml.forEach(slide => {
                         if (slide.video && fs.existsSync(slide.video)) {
@@ -730,7 +751,9 @@ function convertMedias(medias, templates, audio, slidePosition, callback = () =>
 
 
 function updateProgress(videoId, conversionProgress) {
-  VideoModel.findByIdAndUpdate(videoId, {$set: { conversionProgress }}, (err, result) => {
+  VideoModel.findByIdAndUpdate(videoId, {$set: { conversionProgress }}).then((result) => {
+  })
+  .catch(err => {
     if (err) {
       console.log('error updating progress', err);
     }
@@ -738,17 +761,18 @@ function updateProgress(videoId, conversionProgress) {
 }
 
 function updateStatus(videoId, status) {
-  VideoModel.findByIdAndUpdate(videoId, {$set: { status }}, (err, result) => {
+  VideoModel.findByIdAndUpdate(videoId, {$set: { status }}).then((result) => {
+  })
+  .catch(err => {
     if (err) {
       console.log('error updating progress', err);
     }
   })
 }
 
-ArticleModel.count({ published: true }, (err, count) => {
-  if (err) {
-    console.log(err);
-  } else {
+ArticleModel.countDocuments({ published: true }).then((count) => {
     console.log(`Ready to handle a total of ${count} published articles in the database!`)
-  }
+})
+.catch(err => {
+  console.log(err);
 })
