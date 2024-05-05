@@ -1,4 +1,4 @@
-FROM node:18.18.0
+FROM node:20.12.2
 WORKDIR /home/export
 RUN apt update -y  
 RUN apt install ffmpeg -y
