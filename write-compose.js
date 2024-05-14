@@ -23,22 +23,17 @@ const langs = [
   "ml",
   "ta",
   "eu",
+  "ha"
 ];
 
 const content = `
 version: '3'
 services:
-  converter_base_img:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: ["echo", "Base image build done"]
 ${langs
   .map(
     (lang, index) => `
   videowiki_converter_${lang}:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     ${
       index === 0

@@ -1,22 +1,15 @@
 
 version: '3'
 services:
-  converter_base_img:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: ["echo", "Base image build done"]
 
   videowiki_converter_en:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     command: ["node", "worker.js", "en"]
 
   videowiki_converter_hi:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -25,8 +18,7 @@ services:
     command: ["node", "worker.js", "hi"]
 
   videowiki_converter_es:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -35,8 +27,7 @@ services:
     command: ["node", "worker.js", "es"]
 
   videowiki_converter_ar:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -45,8 +36,7 @@ services:
     command: ["node", "worker.js", "ar"]
 
   videowiki_converter_ja:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -55,8 +45,7 @@ services:
     command: ["node", "worker.js", "ja"]
 
   videowiki_converter_uk:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -65,8 +54,7 @@ services:
     command: ["node", "worker.js", "uk"]
 
   videowiki_converter_fr:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -75,8 +63,7 @@ services:
     command: ["node", "worker.js", "fr"]
 
   videowiki_converter_or:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -85,8 +72,7 @@ services:
     command: ["node", "worker.js", "or"]
 
   videowiki_converter_te:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -95,8 +81,7 @@ services:
     command: ["node", "worker.js", "te"]
 
   videowiki_converter_gu:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -105,8 +90,7 @@ services:
     command: ["node", "worker.js", "gu"]
 
   videowiki_converter_bn:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -115,8 +99,7 @@ services:
     command: ["node", "worker.js", "bn"]
 
   videowiki_converter_pa:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -125,8 +108,7 @@ services:
     command: ["node", "worker.js", "pa"]
 
   videowiki_converter_sat:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -135,8 +117,7 @@ services:
     command: ["node", "worker.js", "sat"]
 
   videowiki_converter_sv:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -145,8 +126,7 @@ services:
     command: ["node", "worker.js", "sv"]
 
   videowiki_converter_it:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -155,8 +135,7 @@ services:
     command: ["node", "worker.js", "it"]
 
   videowiki_converter_in:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -165,8 +144,7 @@ services:
     command: ["node", "worker.js", "in"]
 
   videowiki_converter_kn:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -175,8 +153,7 @@ services:
     command: ["node", "worker.js", "kn"]
 
   videowiki_converter_ml:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -185,8 +162,7 @@ services:
     command: ["node", "worker.js", "ml"]
 
   videowiki_converter_ta:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
@@ -195,12 +171,20 @@ services:
     command: ["node", "worker.js", "ta"]
 
   videowiki_converter_eu:
-    extends:
-        service: converter_base_img
+    image: videowiki/export:latest
     restart: unless-stopped
     
     depends_on:
         - videowiki_converter_ta
     
     command: ["node", "worker.js", "eu"]
+
+  videowiki_converter_ha:
+    image: videowiki/export:latest
+    restart: unless-stopped
+    
+    depends_on:
+        - videowiki_converter_eu
+    
+    command: ["node", "worker.js", "ha"]
 
