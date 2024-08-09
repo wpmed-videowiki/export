@@ -467,20 +467,20 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
               slide.video = videoPath;
               utils.getRemoteFileDuration(videoPath, (err, duration) => {
                 // Add fade effect only to slides having at least 2 seconds of content
-                if (!err && Math.floor(duration) > 2) {
-                  finalizeSlideFunc.push((finalizeSlideCB) => {
-                    addFadeEffects(videoPath, FADE_EFFECT_DURATION, (err, fadedVideo) => {
-                      if (err) {
-                        console.log('error adding fade effects', err);
-                        slide.video = videoPath;
-                      } else if (fadedVideo && fs.existsSync(fadedVideo)) {
-                        fs.unlinkSync(videoPath);
-                        slide.video = fadedVideo;
-                      }
-                      finalizeSlideCB();
-                    })
-                  })
-                }
+                // if (!err && Math.floor(duration) > 2) {
+                //   finalizeSlideFunc.push((finalizeSlideCB) => {
+                //     addFadeEffects(videoPath, FADE_EFFECT_DURATION, (err, fadedVideo) => {
+                //       if (err) {
+                //         console.log('error adding fade effects', err);
+                //         slide.video = videoPath;
+                //       } else if (fadedVideo && fs.existsSync(fadedVideo)) {
+                //         fs.unlinkSync(videoPath);
+                //         slide.video = fadedVideo;
+                //       }
+                //       finalizeSlideCB();
+                //     })
+                //   })
+                // }
                 finalizeSlideFunc.push((finalizeSlideCB) => {
                   progress += (1 / article.slides.length) * 100;
                   updateProgress(videoId, progress);
@@ -677,23 +677,25 @@ function convertMedias(medias, templates, audio, slidePosition, callback = () =>
             if (medias.length === 1) {
               return singleCB(null, { fileName, index });
             }
-            let fadeFunc
-            // Add fade in effect only to last media item
-            if (index === medias.length - 1) {
-              fadeFunc = addFadeInEffect
-            } else if (index === 0) {
-              // Add fade out effect only to first media item
-              fadeFunc = addFadeOutEffect
-            } else {
-              // In middle media's, add both fades
-              fadeFunc = addFadeEffects
-            }
-            fadeFunc(fileName, FADE_EFFECT_DURATION, (err, fadedVideo) => {
-              if (err) {
-                return singleCB(null, { fileName, index })
-              }
-              return singleCB(null, { fileName: fadedVideo, index });
-            })
+            return singleCB(null, { fileName, index })
+            // Disbale fading for now
+            // let fadeFunc
+            // // Add fade in effect only to last media item
+            // if (index === medias.length - 1) {
+            //   fadeFunc = addFadeInEffect
+            // } else if (index === 0) {
+            //   // Add fade out effect only to first media item
+            //   fadeFunc = addFadeOutEffect
+            // } else {
+            //   // In middle media's, add both fades
+            //   fadeFunc = addFadeEffects
+            // }
+            // fadeFunc(fileName, FADE_EFFECT_DURATION, (err, fadedVideo) => {
+            //   if (err) {
+            //     return singleCB(null, { fileName, index })
+            //   }
+            //   return singleCB(null, { fileName: fadedVideo, index });
+            // })
         }
         console.log('converting submedia', slideMediaUrl, subtext)
         if (utils.getFileType(mitem.url) === 'image') {
