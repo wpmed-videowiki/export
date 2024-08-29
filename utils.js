@@ -363,7 +363,7 @@ function getMediaLicenseCode(url, callback) {
 }
 
 
-function getReferencesImage(title, wikiSource, references, callback) {
+function getReferencesImage(title, wikiSource, references, translationText, callback) {
   if (!references) {
     setTimeout(() => {
       return callback(null, []);
@@ -398,7 +398,7 @@ function getReferencesImage(title, wikiSource, references, callback) {
     refChunks.forEach((chunk, index) => {
       function renderRefs(cb) {
         ejs.renderFile(path.join(__dirname, 'templates', 'references.ejs'),
-          { references: chunk, start }, 
+          { references: chunk, start, referencesText: translationText && translationText.references ? translationText.references : 'References' }, 
           { escape: (item) => item }, 
           (err, html) => {
             if (err) return cb(err);
@@ -421,7 +421,7 @@ function getReferencesImage(title, wikiSource, references, callback) {
   }
 }
 
-function getCreditsImages({ title, wikiSource, wikiRevisionId }, extraUsers = [], callback = () => {}) {
+function getCreditsImages({ title, wikiSource, wikiRevisionId }, extraUsers = [], translationText = {}, callback = () => {}) {
   // console.log(`${wikiSource}/w/api.php?action=query&format=json&prop=contributors&titles=${title}&redirects`)
   request.get(`${wikiSource}/w/api.php?action=query&format=json&prop=contributors&titles=${encodeURIComponent(title)}&redirects`, (err, data) => {
     if (err) {
@@ -447,7 +447,7 @@ function getCreditsImages({ title, wikiSource, wikiRevisionId }, extraUsers = []
       contributorsChunks.forEach((chunk, index) => {
         function renderContrib(cb) {
           ejs.renderFile(path.join(__dirname, 'templates', 'users_credits.ejs'),
-            { usersChunk: lodash.chunk(chunk, 8), start, usersRef }, 
+            { usersChunk: lodash.chunk(chunk, 8), start, usersRef, textCredits: translationText && translationText.text_credits ? translationText.text_credits : 'Text Credits' }, 
             { escape: (item) => item },
             (err, html) => {
               const imageName = path.join(__dirname, 'tmp' , `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
@@ -471,8 +471,8 @@ function getCreditsImages({ title, wikiSource, wikiRevisionId }, extraUsers = []
   })
 }
 
-function generateReferencesVideos(title, wikiSource, references, { onProgress, onEnd }) {
-  getReferencesImage(title, wikiSource, references, (err, images) => {
+function generateReferencesVideos(title, wikiSource, references, translationText, { onProgress, onEnd }) {
+  getReferencesImage(title, wikiSource, references, translationText, (err, images) => {
     if (err) return onEnd(err);
     if (!images || images.length === 0) return onEnd(null, []);
 
@@ -502,10 +502,27 @@ function generateReferencesVideos(title, wikiSource, references, { onProgress, o
 }
 
 
-function generateCreditsVideos(article, { extraUsers, humanvoice, user }, callback) {
-  getCreditsImages(article, extraUsers, (err, images) => {
+function generateCreditsVideos(article, { extraUsers, humanvoice, user, translationText }, callback) {
+  getCreditsImages(article, extraUsers, translationText, (err, images) => {
     if (err) return callback(err);
     const refFuncArray = [];
+
+    refFuncArray.push(function(cb) {
+      generateCCShareImage({translationText}, (err, imageInfo) => {
+        if (err) {
+          return cb(null)
+        }
+
+        const videoName = path.join(__dirname, 'tmp' , `video-cc-share-${Date.now()}${parseInt(Math.random() * 10000)}.webm`);
+        convertImageToSilentVideo(imageInfo.image, 2, false, videoName, (err) => {
+          fs.unlink(imageInfo.image, () => {});
+          if (err) {
+            return cb(err);
+          }
+          return cb(null, { fileName: videoName, index: 0, silent: true })
+        })
+      });
+    })
 
     if (images || images.length !== 0) {
       images.forEach((image, index) => {
@@ -526,7 +543,7 @@ function generateCreditsVideos(article, { extraUsers, humanvoice, user }, callba
     // Add audio by if it has human voice
     if (humanvoice && user) {
       refFuncArray.push(function(cb) {
-        generateAudioByImage(user.username, (err, imageInfo) => {
+        generateAudioByImage({username: user.username, voiceBy: translationText && translationText.voice_by ?translationText.voice_by : 'Voice by:'}, (err, imageInfo) => {
           if (err) {
             return cb(err)
           }
@@ -536,7 +553,7 @@ function generateCreditsVideos(article, { extraUsers, humanvoice, user }, callba
             if (err) {
               return cb(err);
             }
-            return cb(null, { fileName: videoName, index: images && images.length > 0 ? images.length : 0, silent: true })
+            return cb(null, { fileName: videoName, index: images && images.length > 0 ? images.length : 1, silent: true })
           })
         })
       });
@@ -559,9 +576,25 @@ function checkMediaFileExists(fileUrl, callback = () => {}) {
   })
 }
 
-function generateAudioByImage(username, callback) {
+function generateCCShareImage({ translationText }, callback) {
+  ejs.renderFile(path.join(__dirname, 'templates', 'licence.ejs'),
+    { licence: translationText && translationText.licence ? translationText.licence : "You're free to share + adapt this video under CC-BY-SA 4.0" , }, 
+    { escape: (item) => item },
+    (err, html) => {
+      const imageName = path.join(__dirname, 'tmp' , `cc-share-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
+      webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'all', height: 'all'},  windowSize: { width: 1311
+        , height: 620 } }, function(err) {
+          if (err) {
+            return callback(err);
+          }
+          return callback(null, { image: imageName })
+      });
+  });
+}
+
+function generateAudioByImage({ username, voiceBy }, callback) {
   ejs.renderFile(path.join(__dirname, 'templates', 'audio_by.ejs'),
-    { username }, 
+    { username, voiceBy }, 
     { escape: (item) => item },
     (err, html) => {
       const imageName = path.join(__dirname, 'tmp' , `image-audio-by-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);

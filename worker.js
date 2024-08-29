@@ -503,7 +503,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                 type: 'image',
               }];
             }
-            convertMedias(slide.media, slide.templates, audioUrl, slide.position, convertCallback);
+            convertMedias(slide.media, slide.templates, audioUrl, slide.position, video.translationText, convertCallback);
           }
           
           convertFuncArray.push(convert);
@@ -534,7 +534,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
               console.log('error creating credits videos', err);
             }
             // Generate the article references slides
-            utils.generateReferencesVideos(article.title, article.wikiSource, article.referencesList,{
+            utils.generateReferencesVideos(article.title, article.wikiSource, article.referencesList, video.translationText, {
               onProgress: (progress) => {
                 if (progress && progress !== 'null') {
                   VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: progress }}).then((result) => {
@@ -635,7 +635,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   })
 }
 
-function convertMedias(medias, templates, audio, slidePosition, callback = () => {}) {
+function convertMedias(medias, templates, audio, slidePosition, translationText, callback = () => {}) {
   const convertMediaFuncArray = [];
   let videoDerivative = [];
   const trimVideo = !(templates && templates.some(template => template.toLowerCase() === CUSTOM_TEMPLATES.PLAYALL.toLowerCase()));
@@ -649,7 +649,7 @@ function convertMedias(medias, templates, audio, slidePosition, callback = () =>
           console.log('error fetching media author and licence', err, medias);
         } else if (info){
           if (info.author) {
-            subtext = `Visual Content by ${info.author}${info.licence ? ', ' : '.'}`
+            subtext = `${translationText && translationText.visual_content_by ? translationText.visual_content_by : 'Visual Content by'} ${info.author}${info.licence ? ', ' : '.'}`
           }
           if (info.licence) {
             subtext += info.licence

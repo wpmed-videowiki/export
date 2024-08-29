@@ -1,0 +1,10 @@
+After the container starts
+
+1- create a user for videowiki
+rabbitmqctl add_user videowiki password
+
+2- set the user as an admin
+rabbitmqctl set_user_tags videowiki administrator
+
+3- set user permissions
+rabbitmqctl set_permissions -p / videowiki ".*" ".*" ".*"

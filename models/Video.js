@@ -24,6 +24,7 @@ const VideoSchema = new Schema({
   },
   textReferencesProgress: { type: Number, default: 0 },
   combiningVideosProgress: { type: Number, default: 0 },
+  translationText: { type: SchemaTypes.Mixed, default: {} },
   wrapupVideoProgress: { type: Number, default: 0 },
   url: String,
   ETag: String, // s3 tag id 
