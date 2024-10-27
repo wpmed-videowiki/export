@@ -54,6 +54,7 @@ module.exports = {
     } else {
       command += `" -shortest ${audioTrim} ${outputPath}`;
     }
+    console.log(command)
     return command;
   },
   generateVideoToVideoCommand({ videoPath, audio, audioDuration, videoDuration, subtext, outputPath, videoDimentions, frameRate, silent, duration, scale }) {
@@ -83,6 +84,7 @@ module.exports = {
       }
       command += `" -map "[outv]" -map 2:a -shortest ${outputPath}`;
     }
+    console.log(command)
     return command;
   },
   generateGifToVideoCommand({ gifPath, audioDuration, audio, subtext, outputPath, silent, duration, scale }) {
@@ -107,6 +109,7 @@ module.exports = {
     } else {
       command += `" -strict -2 -c:v libvpx-vp9 -shortest ${outputPath}`
     }
+    console.log(command)
     return command;
   },
 }

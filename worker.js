@@ -223,6 +223,7 @@ function deleteAWSVideoCallback(msg) {
   })
 }
 const verifyMedia = (slide, mitem) => (cb) => {
+  console.log("Verify start", mitem)
   if (!mitem.url && !mitem.origianlUrl) {
     mitem.url = DEFAUL_IMAGE_URL;
     mitem.type = 'image';
@@ -236,10 +237,11 @@ const verifyMedia = (slide, mitem) => (cb) => {
   if (slideMediaUrl.indexOf('400px-') !== -1) {
     slideMediaUrl = slideMediaUrl.replace('400px-', '800px-');
   }
+  console.log('new slidemediaurl', slideMediaUrl)
   // Svg files are rendered as pngs
-  if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
-    slideMediaUrl = mitem.thumburl || mitem.url;
-  }
+  // if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
+  //   slideMediaUrl = mitem.thumburl || mitem.url;
+  // }
   utils.downloadMediaFile(slideMediaUrl, tmpMediaName, (err) => {
     if (err) {
       console.log(err);
@@ -249,7 +251,32 @@ const verifyMedia = (slide, mitem) => (cb) => {
       return cb();
     }
     mitem.tmpUrl = tmpMediaName;
-    return cb();
+    if (utils.getFileType(tmpMediaName) === 'image') {
+      utils.getFileDimentions(tmpMediaName, (err, dimentions) => {
+            if (err && !dimentions) {
+              console.log('error getting dimentions', err);
+              dimentions = `${VIDEO_WIDTH}x${VIDEO_HEIGHT}`;
+            }
+            // If the width is larger than the default video width get a thumbnail image instead
+            const imageWidth = parseInt(dimentions.split('x')[0]);
+            if ((imageWidth > VIDEO_WIDTH && mitem.thumburl) || tmpMediaName.split('.').pop().toLowerCase() === 'svg') {
+              const tmpThumbName = path.join(__dirname, 'tmp', `downTmpThumb-${Date.now()}-${parseInt(Math.random() * 10000)}.${mitem.thumburl.split('.').pop()}`);
+              utils.downloadMediaFile(mitem.thumburl, tmpThumbName, (err) => {
+                if (err) {
+                  return cb();
+                }
+                mitem.tmpUrl = tmpThumbName;
+                return cb();
+              })
+
+            } else {
+              return cb();
+            }
+      })
+      
+    } else {
+      return cb();
+    }
   })
 }
 
@@ -414,9 +441,9 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
         }];
       } else {
         slide.media.forEach((mitem) => {
-          if (process.env.NODE_ENV !== 'production') {
+          // if (process.env.NODE_ENV !== 'production') {
             verifySlidesMediaFuncArray.push(verifyMedia(slide, mitem));
-          }
+          // }
         })
       }
     })
@@ -667,8 +694,9 @@ function convertMedias(medias, templates, audio, slidePosition, translationText,
         }
         
         let slideMediaUrl = mitem.tmpUrl || mitem.origianlUrl || mitem.url;
-        if (mitem.origianlUrl && mitem.origianlUrl.split('.').pop().toLowerCase() === 'svg') {
+        if (slideMediaUrl.split('.').pop().toLowerCase() === 'svg') {
           slideMediaUrl = mitem.thumburl || mitem.url;
+          console.log("FOund SVG file", slideMediaUrl)
         }
         const convertSingleCallback = function convertSingleCallback(err, fileName) {
             console.log('After convert to silent', fileName)
