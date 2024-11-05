@@ -188,3 +188,11 @@ services:
     
     command: ["node", "worker.js", "ha"]
 
+  videowiki_converter_zh:
+    image: videowiki/export:latest
+    restart: unless-stopped
+    
+    depends_on:
+        - videowiki_converter_ha
+    
+    command: ["node", "worker.js", "zh"]

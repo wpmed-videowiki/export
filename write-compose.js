@@ -23,30 +23,30 @@ const langs = [
   "ml",
   "ta",
   "eu",
-  "ha"
+  "ha",
+  "zh"
 ];
 
 const content = `
 version: '3'
 services:
 ${langs
-  .map(
-    (lang, index) => `
+    .map(
+      (lang, index) => `
   videowiki_converter_${lang}:
     image: videowiki/export:latest
     restart: unless-stopped
-    ${
-      index === 0
-        ? ""
-        : `
+    ${index === 0
+          ? ""
+          : `
     depends_on:
         - videowiki_converter_${langs[index - 1]}
     `
-    }
+        }
     command: ["node", "worker.js", "${lang}"]
 `
-  )
-  .join("")}
+    )
+    .join("")}
 `;
 
 fs.writeFileSync("docker-compose.yml", content);
