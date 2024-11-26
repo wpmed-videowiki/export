@@ -196,3 +196,13 @@ services:
         - videowiki_converter_ha
     
     command: ["node", "worker.js", "zh"]
+
+  videowiki_converter_ne:
+    image: videowiki/export:latest
+    restart: unless-stopped
+    
+    depends_on:
+        - videowiki_converter_zh
+    
+    command: ["node", "worker.js", "ne"]
+

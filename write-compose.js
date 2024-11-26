@@ -24,7 +24,8 @@ const langs = [
   "ta",
   "eu",
   "ha",
-  "zh"
+  "zh",
+  "ne"
 ];
 
 const content = `
