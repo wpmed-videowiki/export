@@ -25,7 +25,8 @@ const langs = [
   "eu",
   "ha",
   "zh",
-  "ne"
+  "ne",
+  "mg"
 ];
 
 const content = `

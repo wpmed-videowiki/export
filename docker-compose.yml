@@ -206,3 +206,12 @@ services:
     
     command: ["node", "worker.js", "ne"]
 
+  videowiki_converter_mg:
+    image: videowiki/export:latest
+    restart: unless-stopped
+    
+    depends_on:
+        - videowiki_converter_ne
+    
+    command: ["node", "worker.js", "mg"]
+
