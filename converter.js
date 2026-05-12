@@ -64,7 +64,7 @@ module.exports = {
   videoToSilentVideo({ video, duration, subtext, outputPath }, callback = () => {}) {
     if (video.split('.').pop().toLowerCase() === 'ogv') {
       const tmpVidPath = path.join(__dirname, 'tmp', `tmpOgvVideo_${Date.now()}.webm`);
-      exec(`ffmpeg -y -i ${video} ${tmpVidPath}`, (err, stdout, stderr) => {
+      exec(`ffmpeg -y -i "${video}" ${tmpVidPath}`, (err, stdout, stderr) => {
         if (err) return callback(null, video);
         fs.unlink(video, () => {});
         getFileDimentions(tmpVidPath, (err, dimentions) => {
@@ -111,7 +111,7 @@ module.exports = {
   },
 
   wavToWebm(filePath, targetPath, callback = () => {}) {
-    exec(`ffmpeg  -y -i ${filePath} -vn ${targetPath}`, (err, stdout, stderr) => {
+    exec(`ffmpeg  -y -i "${filePath}" -vn ${targetPath}`, (err, stdout, stderr) => {
       if (err) return callback(err);
       if (!fs.existsSync(filePath)) {
         return callback(new Error('Something went wrong'))
@@ -167,7 +167,7 @@ module.exports = {
         updateFuncArray.push((cb) => {
           if (video.split('.').pop().toLowerCase() === 'ogv') {
             const tmpVidPath = path.join(__dirname, 'tmp', `tmpOgvVideo_${Date.now()}.webm`);
-            exec(`ffmpeg -y -i ${video} ${tmpVidPath}`, (err, stdout, stderr) => {
+            exec(`ffmpeg -y -i "${video}" ${tmpVidPath}`, (err, stdout, stderr) => {
               if (err) return cb(null, video);
               return cb(null, tmpVidPath);
             })
@@ -256,8 +256,8 @@ module.exports = {
       if (err) return callback(err);
       if (!framesInfo) return callback(new Error('Something went wrong getting number of frames'));
       console.log({ framesInfo })
-      const command = `ffmpeg -y -i ${video} -vf 'fade=in:0:${Math.ceil(framesInfo.frameRate * fadeDuration)},fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
-      // const command = `ffmpeg -y -i ${video} -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
+      const command = `ffmpeg -y -i "${video}" -vf 'fade=in:0:${Math.ceil(framesInfo.frameRate * fadeDuration)},fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
+      // const command = `ffmpeg -y -i "${video}" -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
       exec(command, (err) => {
         if (err) return callback(err);
         // fs.unlink(video, () => {})
@@ -272,8 +272,8 @@ module.exports = {
       if (err) return callback(err);
       if (!framesInfo) return callback(new Error('Something went wrong getting number of frames'));
       console.log({ framesInfo })
-      const command = `ffmpeg -y -i ${video} -vf 'fade=in:0:${Math.ceil(framesInfo.frameRate * fadeDuration)}' ${fadedPath}`;
-      // const command = `ffmpeg -y -i ${video} -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
+      const command = `ffmpeg -y -i "${video}" -vf 'fade=in:0:${Math.ceil(framesInfo.frameRate * fadeDuration)}' ${fadedPath}`;
+      // const command = `ffmpeg -y -i "${video}" -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
       exec(command, (err) => {
         if (err) return callback(err);
         // fs.unlink(video, () => {})
@@ -287,8 +287,8 @@ module.exports = {
     getVideoNumberOfFrames(video, (err, framesInfo) => {
       if (err) return callback(err);
       if (!framesInfo) return callback(new Error('Something went wrong getting number of frames'));
-      const command = `ffmpeg -y -i ${video} -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
-      // const command = `ffmpeg -y -i ${video} -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
+      const command = `ffmpeg -y -i "${video}" -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
+      // const command = `ffmpeg -y -i "${video}" -vf 'fade=out:${Math.floor(framesInfo.frames - parseInt(framesInfo.frameRate * fadeDuration))}:${(Math.ceil(framesInfo.frameRate * fadeDuration))}' ${fadedPath}`;
       exec(command, (err) => {
         if (err) return callback(err);
         // fs.unlink(video, () => {})
@@ -307,7 +307,7 @@ module.exports = {
 
       if (options.trimVideo) {
         audioTrim = ` -t ${duration} `;
-        const command = `ffmpeg -y -i ${video} -i ${audio} -map 0:v:0 -map 1:a:0 ${audioTrim} ${outputPath}`;
+        const command = `ffmpeg -y -i "${video}" -i "${audio}" -map 0:v:0 -map 1:a:0 ${audioTrim} ${outputPath}`;
         // console.log('command', command);
         return exec(command, (err, stdout, stderr) => {
           if (err) return callback(err);
@@ -319,10 +319,10 @@ module.exports = {
       // expand audio to match video duration
       getRemoteFileDuration(video, (err, videoDuration) => {
         const tmpAudioPath = `tmp/${Date.now()}.mp3`;
-        const expandCMD = `ffmpeg -i ${audio} -vcodec copy -af apad -ss 00:00:00.000 -t ${new Date(videoDuration * 1000).toISOString().substr(11,8)} ${tmpAudioPath}`
+        const expandCMD = `ffmpeg -i "${audio}" -vcodec copy -af apad -ss 00:00:00.000 -t ${new Date(videoDuration * 1000).toISOString().substr(11,8)} ${tmpAudioPath}`
         exec(expandCMD, (err) => {
           if (err) return callback(err);
-          exec(`ffmpeg -y -i ${video} -i ${tmpAudioPath} -map 0:v:0 -map 1:a:0 ${outputPath}`, (err) => {
+          exec(`ffmpeg -y -i "${video}" -i "${tmpAudioPath}" -map 0:v:0 -map 1:a:0 ${outputPath}`, (err) => {
             if (err) return callback(err);
             if (!fs.existsSync(outputPath)) return callback(new Error('Something went wrong'));
             
@@ -384,7 +384,7 @@ module.exports = {
       }
       // The slowed version is 0.1 more in duration, adjusting the progress accordingly
       totalDuration = totalDuration * 1.1;
-      exec(`ffmpeg -y -i ${videoPath} -filter_complex "[0:v]setpts=1.1*PTS[v];[0:a]atempo=0.9[a]" -map "[v]" -map "[a]" ${slowVideoPath}`, (err, stdout, stderr) => {
+      exec(`ffmpeg -y -i "${videoPath}" -filter_complex "[0:v]setpts=1.1*PTS[v];[0:a]atempo=0.9[a]" -map "[v]" -map "[a]" ${slowVideoPath}`, (err, stdout, stderr) => {
         if (err) {
           console.log('erro slowing down video', err, stderr);
           return onEnd(err);
@@ -407,7 +407,7 @@ module.exports = {
       // Has audio stream, extract it!
       if (stdout && stdout.trim()) {
         const audioPath = path.join(__dirname, 'tmp', `${parseInt(Date.now() + Math.random() * 100000)}-extracted-audio.mp3`);
-        const cmd2 = `ffmpeg -y -i ${videoPath} ${audioPath}`;
+        const cmd2 = `ffmpeg -y -i "${videoPath}" ${audioPath}`;
         exec(cmd2, (err) => {
           if (err) return callback(err);
           return callback(null, audioPath);
@@ -428,7 +428,7 @@ module.exports = {
   generateSilentAudio: generateSilentAudio,  
   combineAudios(audios, callback = () => {}) {
     const audioPath = path.join(__dirname, 'tmp', `${parseInt(Date.now() + Math.random() * 100000)}-combined-audio.mp3`);
-    const inputs = audios.reduce((acc, a) => acc + ` -i ${a}`, '')
+    const inputs = audios.reduce((acc, a) => acc + ` -i "${a}"`, '')
     const fcomplex  = audios.map((a, index) => `[${index}:0]`).join('')
     const cmd = `ffmpeg${inputs} -filter_complex '${fcomplex}concat=n=${audios.length}:v=0:a=1[out]' -map '[out]' ${audioPath}`;
     exec(cmd, (err) => {

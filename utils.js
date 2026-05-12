@@ -95,7 +95,7 @@ function getFileDimentions(videoUrl, callback) {
 }
 
 function getRemoteFileDuration(url, callback) {
-  exec(`ffprobe -i ${url} -show_entries format=duration -v quiet -of csv="p=0"`, (err, stdout, stderr) => {
+  exec(`ffprobe -i "${url}" -show_entries format=duration -v quiet -of csv="p=0"`, (err, stdout, stderr) => {
     if (err) {
       return callback(err);
     }

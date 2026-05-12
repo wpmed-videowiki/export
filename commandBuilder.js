@@ -27,14 +27,14 @@ function generateSubtext(subtext) {
 
 module.exports = {
   generateImageToVideoCommand({ imagePath, audio, shouldOverlayWhiteBackground, dimentions, scale, subtext, audioTrim, outputPath, silent, duration }) {
-    let command = `ffmpeg -y -thread_queue_size 512 -framerate 25 -loop 1 -i ${imagePath}`;
+    let command = `ffmpeg -y -thread_queue_size 512 -framerate 25 -loop 1 -i "${imagePath}"`;
     if (shouldOverlayWhiteBackground) {
       command += ` -f lavfi -i color=c=white:s=${dimentions}`;
     }
     if (silent) {
       command += ` -t ${duration} -pix_fmt yuv420p -filter_complex "`
     } else {
-      command += ` -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "`;
+      command += ` -i "${audio}" -c:v libvpx-vp9 -c:a libvorbis -filter_complex "`;
     }
     if (shouldOverlayWhiteBackground) {
       command += `[1:v][0:v]overlay=1,format=yuv444p `;
@@ -60,7 +60,7 @@ module.exports = {
   generateVideoToVideoCommand({ videoPath, audio, audioDuration, videoDuration, subtext, outputPath, videoDimentions, frameRate, silent, duration, scale }) {
     let command;
     if (silent) {
-      command = `ffmpeg -y -t ${duration} -i ${videoPath} -c:v libvpx-vp9 -pix_fmt yuv420p  -filter_complex "`;
+      command = `ffmpeg -y -t ${duration} -i "${videoPath}" -c:v libvpx-vp9 -pix_fmt yuv420p  -filter_complex "`;
       if (scale) {
         command += `[0:v]${generateScale(scale)}`;
         command += `[outv];${generateBackgroundBlur('[0:v]')}[bg];[bg][outv]overlay=(W-w)/2:(H-h)/2`;
@@ -72,13 +72,13 @@ module.exports = {
       }
       command += `[outv]" -map "[outv]" ${outputPath}`
     } else if (audioDuration <= videoDuration) {
-      command = `ffmpeg -y -t ${audioDuration} -i ${videoPath} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -map 0:v:0 -map 1:a:0 -filter_complex "${constants.FFMPEG_SCALE_BOTH}`;
+      command = `ffmpeg -y -t ${audioDuration} -i "${videoPath}" -i "${audio}" -c:v libvpx-vp9 -c:a libvorbis -map 0:v:0 -map 1:a:0 -filter_complex "${constants.FFMPEG_SCALE_BOTH}`;
       if (subtext) {
         command += `[outv];[outv]${generateSubtext(audioDuration, subtext)}[outv];[outv]format=yuv420p`
       }
       command += `" -shortest ${outputPath}`;
     } else {
-      command = `ffmpeg -y -f lavfi -i color=s=${videoDimentions}:d=${audioDuration}:r=${frameRate}:c=0xFFE4C4@0.0 -i ${videoPath} -i ${audio} -c:v libvpx-vp9 -c:a libvorbis -filter_complex "[0:v][1:v]overlay[outv];[outv]scale=w=800:h=600,setsar=${constants.SAR},setdar=${constants.DAR},pad=800:600:(ow-iw)/2:(oh-ih)/2[outv]`
+      command = `ffmpeg -y -f lavfi -i color=s=${videoDimentions}:d=${audioDuration}:r=${frameRate}:c=0xFFE4C4@0.0 -i "${videoPath}" -i "${audio}" -c:v libvpx-vp9 -c:a libvorbis -filter_complex "[0:v][1:v]overlay[outv];[outv]scale=w=800:h=600,setsar=${constants.SAR},setdar=${constants.DAR},pad=800:600:(ow-iw)/2:(oh-ih)/2[outv]`
       if (subtext) {
         command += `;[outv]${generateSubtext(audioDuration, subtext)}[outv];[outv]format=yuv420p[outv]`;
       }
@@ -90,7 +90,7 @@ module.exports = {
   generateGifToVideoCommand({ gifPath, audioDuration, audio, subtext, outputPath, silent, duration, scale }) {
     let command = '';
     if (silent) {
-      command = `ffmpeg -y -ignore_loop 0 -t ${duration} -i ${gifPath} -t ${duration} -c:v libvpx-vp9 -filter_complex "`;
+      command = `ffmpeg -y -ignore_loop 0 -t ${duration} -i "${gifPath}" -t ${duration} -c:v libvpx-vp9 -filter_complex "`;
       if (scale) {
         command += `[0:v]${generateScale(scale)}`;
         command += `[outv];${generateBackgroundBlur('[0:v]')}[bg];[bg][outv]overlay=(W-w)/2:(H-h)/2`;
@@ -99,7 +99,7 @@ module.exports = {
       }
   
     } else {
-      command = `ffmpeg -y -ignore_loop 0 -t ${audioDuration} -i ${gifPath} -i ${audio} -filter_complex "${constants.FFMPEG_SCALE_BOTH}`;
+      command = `ffmpeg -y -ignore_loop 0 -t ${audioDuration} -i "${gifPath}" -i "${audio}" -filter_complex "${constants.FFMPEG_SCALE_BOTH}`;
     }
     if (subtext) {
       command += ` [outv];[outv]${generateSubtext(subtext)}[outv];[outv]format=yuv420p`
