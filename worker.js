@@ -45,7 +45,7 @@ const {
 }  = require('./converter');
 const utils = require('./utils');
 const subtitles = require('./subtitles');
-const { DEFAUL_IMAGE_URL, SLIDE_CONVERT_PER_TIME, FADE_EFFECT_DURATION, VIDEO_WIDTH, VIDEO_HEIGHT, CUSTOM_TEMPLATES } = require('./constants');
+const { DEFAUL_IMAGE_URL, SLIDE_CONVERT_PER_TIME, FADE_EFFECT_DURATION, VIDEO_WIDTH, CUSTOM_TEMPLATES } = require('./constants');
 
 const UserModel = require('./models/User');
 const ArticleModel = require('./models/Article');
@@ -265,10 +265,9 @@ const verifyMedia = (slide, mitem, exportDir) => (cb) => {
       utils.getFileDimentions(tmpMediaName, (err, dimentions) => {
             if (err && !dimentions) {
               console.log('error getting dimentions', err);
-              dimentions = `${VIDEO_WIDTH}x${VIDEO_HEIGHT}`;
             }
             // If the width is larger than the default video width get a thumbnail image instead
-            const imageWidth = parseInt(dimentions.split('x')[0]);
+            const imageWidth = utils.resolveImageWidth(dimentions, mitem.width);
             if ((imageWidth > VIDEO_WIDTH && mitem.thumburl) || utils.getFileExtension(tmpMediaName) === 'svg') {
               const tmpThumbName = path.join(exportDir, `downTmpThumb-${Date.now()}-${parseInt(Math.random() * 10000)}.${utils.getFileExtension(mitem.thumburl)}`);
               utils.downloadMediaFile(mitem.thumburl, tmpThumbName, (err) => {
@@ -743,13 +742,13 @@ function convertMedias(medias, templates, audio, slidePosition, translationText,
           utils.getFileDimentions(slideMediaUrl, (err, dimentions) => {
             if (err && !dimentions) {
               console.log('error getting dimentions', err);
-              dimentions = `${VIDEO_WIDTH}x${VIDEO_HEIGHT}`;
             }
             // If the width is larger than the default video width
-            // get a thumbnail image instead
-            const imageWidth = parseInt(dimentions.split('x')[0]); 
-            if (imageWidth > VIDEO_WIDTH) {
-              slideMediaUrl = mitem.thumburl;  
+            // get a thumbnail image instead. slideMediaUrl may already be a
+            // downscaled thumbnail here, so mitem.width does not apply
+            const imageWidth = utils.resolveImageWidth(dimentions);
+            if (imageWidth > VIDEO_WIDTH && mitem.thumburl) {
+              slideMediaUrl = mitem.thumburl;
             }
             imageToSilentVideo({ image: slideMediaUrl, subtext, duration: mitem.time / 1000, outputPath: fileName }, convertSingleCallback);
           })

@@ -84,6 +84,16 @@ function getOriginalCommonsUrl(thumbnailPathWithQuery) {
     return null
 }
 
+// ffprobe refuses to read images past roughly 268 megapixels ((w+128)*(h+128)
+// must stay under INT_MAX/8), so a failed probe means the file is too big for
+// ffmpeg rather than safe to use as is. reportedWidth, when the imageinfo api
+// gave us one for this exact file, is more trustworthy than probing.
+function resolveImageWidth(dimentions, reportedWidth) {
+  const width = parseInt(reportedWidth, 10)
+    || (dimentions ? parseInt(dimentions.split('x')[0], 10) : NaN);
+  return width || Infinity;
+}
+
 function getFileType(fileUrl) {
   const extension = getFileExtension(fileUrl);
   if (IMAGE_EXTENSIONS.indexOf(extension) > -1) return 'image';
@@ -713,6 +723,7 @@ module.exports = {
   getFileType,
   getFileExtension,
   stripUrlQuery,
+  resolveImageWidth,
   downloadMediaFile,
   getReferencesImage,
   getOriginalCommonsUrl,
