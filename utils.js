@@ -2,7 +2,17 @@ const fs = require('fs');
 const path = require('path');
 const request = require('request');
 const mp3Duration = require('mp3-duration');
-const { exec } = require('child_process');
+const childProcess = require('child_process');
+// ffmpeg logs everything to stderr; exec kills the child process once
+// stdout/stderr exceeds maxBuffer (default 1MB), aborting the conversion
+const MAX_STDIO_BUFFER = 1024 * 1024 * 50;
+const exec = (command, options, callback) => {
+  if (typeof options === 'function') {
+    callback = options;
+    options = {};
+  }
+  return childProcess.exec(command, Object.assign({ maxBuffer: MAX_STDIO_BUFFER }, options), callback);
+};
 const AWS = require('aws-sdk');
 const wikijs = require('wikijs').default;
 const cheerio = require('cheerio');
