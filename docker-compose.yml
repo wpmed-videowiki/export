@@ -5,12 +5,22 @@ services:
   videowiki_converter_en:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     command: ["node", "worker.js", "en"]
 
   videowiki_converter_hi:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_en
@@ -20,6 +30,11 @@ services:
   videowiki_converter_es:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_hi
@@ -29,6 +44,11 @@ services:
   videowiki_converter_ar:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_es
@@ -38,6 +58,11 @@ services:
   videowiki_converter_ja:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_ar
@@ -47,6 +72,11 @@ services:
   videowiki_converter_uk:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_ja
@@ -56,6 +86,11 @@ services:
   videowiki_converter_fr:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_uk
@@ -65,6 +100,11 @@ services:
   videowiki_converter_or:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_fr
@@ -74,6 +114,11 @@ services:
   videowiki_converter_te:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_or
@@ -83,6 +128,11 @@ services:
   videowiki_converter_gu:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_te
@@ -92,6 +142,11 @@ services:
   videowiki_converter_bn:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_gu
@@ -101,6 +156,11 @@ services:
   videowiki_converter_pa:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_bn
@@ -110,6 +170,11 @@ services:
   videowiki_converter_sat:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_pa
@@ -119,6 +184,11 @@ services:
   videowiki_converter_sv:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_sat
@@ -128,6 +198,11 @@ services:
   videowiki_converter_it:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_sv
@@ -137,6 +212,11 @@ services:
   videowiki_converter_in:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_it
@@ -146,6 +226,11 @@ services:
   videowiki_converter_kn:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_in
@@ -155,6 +240,11 @@ services:
   videowiki_converter_ml:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_kn
@@ -164,6 +254,11 @@ services:
   videowiki_converter_ta:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_ml
@@ -173,6 +268,11 @@ services:
   videowiki_converter_eu:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_ta
@@ -182,6 +282,11 @@ services:
   videowiki_converter_ha:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_eu
@@ -191,6 +296,11 @@ services:
   videowiki_converter_zh:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_ha
@@ -200,6 +310,11 @@ services:
   videowiki_converter_ne:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_zh
@@ -209,6 +324,11 @@ services:
   videowiki_converter_mg:
     image: videowiki/export:latest
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     
     depends_on:
         - videowiki_converter_ne
