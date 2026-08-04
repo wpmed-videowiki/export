@@ -21,6 +21,13 @@ APP_DIRS.forEach((dir) => {
   }
 });
 
+fs.readdirSync(path.join(__dirname, 'tmp')).forEach((entry) => {
+  if (entry.startsWith(`export-${lang}-`)) {
+    console.log('removing leftover export workspace', entry);
+    fs.rmSync(path.join(__dirname, 'tmp', entry), { recursive: true, force: true });
+  }
+});
+
 const {
   imageToSilentVideo,
   videoToSilentVideo,
@@ -76,7 +83,12 @@ amqp.connect(process.env.RABBITMQ_HOST_URL, (err, conn) => {
 
 function convertQueueCallback(msg) {
   const { videoId } = JSON.parse(msg.content.toString());
-  
+  // All temp files of this export (downloads, intermediates, final video) live
+  // in one workspace dir, removed as a whole on every terminal path
+  const exportDir = path.join(__dirname, 'tmp', `export-${lang}-${videoId}-${Date.now()}`);
+  fs.mkdirSync(exportDir, { recursive: true });
+  const removeExportDir = () => fs.rm(exportDir, { recursive: true, force: true }, () => {});
+
   VideoModel
   .findById(videoId)
   .populate('humanvoice')
@@ -84,7 +96,8 @@ function convertQueueCallback(msg) {
   .exec().then((video) => {
     if (!video) {
       console.log('invalid video id');
-      updateStatus(videoId, 'failed');          
+      updateStatus(videoId, 'failed');
+      removeExportDir();
       return convertChannel.ack(msg);
     }
     console.log('video is ', video);
@@ -93,18 +106,20 @@ function convertQueueCallback(msg) {
 
       // Update status
       updateStatus(videoId, 'progress');
-      convertArticle({ article, video, videoId, withSubtitles: video.withSubtitles }, (err, convertResult) => {
+      convertArticle({ article, video, videoId, withSubtitles: video.withSubtitles, exportDir }, (err, convertResult) => {
         console.log('convert rsult is ', convertResult)
         if (err) {
           updateStatus(videoId, 'failed');
           console.log(err);
+          removeExportDir();
           return convertChannel.ack(msg);
         }
         utils.uploadVideoToS3(convertResult.videoPath, (err, uploadVideoResult) => {
 
           if (err) {
             console.log('error uploading file', err);
-            updateStatus(videoId, 'failed');                
+            updateStatus(videoId, 'failed');
+            removeExportDir();
             return convertChannel.ack(msg);
           }
           const { url, ETag } = uploadVideoResult;
@@ -141,10 +156,7 @@ function convertQueueCallback(msg) {
                 updateProgress(videoId, 100);
                 convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
                 // Cleanup
-                fs.unlink(convertResult.videoPath, () => {});
-                Object.keys(convertResult.subtitles).forEach(key => {
-                  fs.unlink(convertResult.subtitles[key], () => {});
-                })
+                removeExportDir();
               })
             })
 
@@ -164,26 +176,24 @@ function convertQueueCallback(msg) {
               updateProgress(videoId, 100);
               convertChannel.sendToQueue(UPDLOAD_CONVERTED_TO_COMMONS_QUEUE, new Buffer(JSON.stringify({ videoId })), { persistent: true })
               // Cleanup
-              fs.unlink(convertResult.videoPath, () => {});
+              removeExportDir();
             })
           }
         })
       })
     })
     .catch(err => {
-      if (err) {
-        updateStatus(videoId, 'failed');
-        console.log('error fetching article ', err);
-        return convertChannel.ack(msg);
-      }
+      updateStatus(videoId, 'failed');
+      console.log('error fetching article ', err);
+      removeExportDir();
+      return convertChannel.ack(msg);
     })
   })
   .catch(err => {
-    if (err) {
-      updateStatus(videoId, 'failed');
-      console.log('error retrieving video', err);
-      return convertChannel.ack(msg);
-    }
+    updateStatus(videoId, 'failed');
+    console.log('error retrieving video', err);
+    removeExportDir();
+    return convertChannel.ack(msg);
   })
 
 }
@@ -222,7 +232,7 @@ function deleteAWSVideoCallback(msg) {
     }
   })
 }
-const verifyMedia = (slide, mitem) => (cb) => {
+const verifyMedia = (slide, mitem, exportDir) => (cb) => {
   console.log("Verify start", mitem)
   if (!mitem.url && !mitem.origianlUrl) {
     mitem.url = DEFAUL_IMAGE_URL;
@@ -231,7 +241,7 @@ const verifyMedia = (slide, mitem) => (cb) => {
     return cb();
   }
   let slideMediaUrl = mitem.origianlUrl || mitem.url;
-  const tmpMediaName = path.join(__dirname, 'tmp', `downTmpMedia-${Date.now()}-${parseInt(Math.random() * 10000)}.${slideMediaUrl.split('.').pop()}`);
+  const tmpMediaName = path.join(exportDir, `downTmpMedia-${Date.now()}-${parseInt(Math.random() * 10000)}.${slideMediaUrl.split('.').pop()}`);
   console.log('veirying', slideMediaUrl)
 
   if (slideMediaUrl.indexOf('400px-') !== -1) {
@@ -260,7 +270,7 @@ const verifyMedia = (slide, mitem) => (cb) => {
             // If the width is larger than the default video width get a thumbnail image instead
             const imageWidth = parseInt(dimentions.split('x')[0]);
             if ((imageWidth > VIDEO_WIDTH && mitem.thumburl) || tmpMediaName.split('.').pop().toLowerCase() === 'svg') {
-              const tmpThumbName = path.join(__dirname, 'tmp', `downTmpThumb-${Date.now()}-${parseInt(Math.random() * 10000)}.${mitem.thumburl.split('.').pop()}`);
+              const tmpThumbName = path.join(exportDir, `downTmpThumb-${Date.now()}-${parseInt(Math.random() * 10000)}.${mitem.thumburl.split('.').pop()}`);
               utils.downloadMediaFile(mitem.thumburl, tmpThumbName, (err) => {
                 if (err) {
                   return cb();
@@ -280,8 +290,8 @@ const verifyMedia = (slide, mitem) => (cb) => {
   })
 }
 
-const downloadSlideAudio = slide => (cb) => {
-  const tempAudioFile = path.join(__dirname, 'tmp', `downTmpAudio-${Date.now()}-${slide.audio.split('/').pop()}`);
+const downloadSlideAudio = (slide, exportDir) => (cb) => {
+  const tempAudioFile = path.join(exportDir, `downTmpAudio-${Date.now()}-${slide.audio.split('/').pop()}`);
   const audioUrl = slide.audio.indexOf('http') === -1 ? `https:${slide.audio}` : slide.audio;
   console.log('downloading', slide.audio)
   utils.downloadMediaFile(audioUrl, tempAudioFile, (err) => {
@@ -303,7 +313,7 @@ const downloadSlideAudio = slide => (cb) => {
   })
 }
 
-const generateSlideAudioFromMedia = slide => cb => {
+const generateSlideAudioFromMedia = (slide, exportDir) => cb => {
   console.log('=========================== generateSlideAudioFromMedia ==============================')
   // loop over slide's media
   // if the media item is video, extract it's audio
@@ -317,7 +327,7 @@ const generateSlideAudioFromMedia = slide => cb => {
   slide.media.forEach(mitem => {
     generateMediaFuncArray.push((cb) => {
       if (utils.getFileType(mitem.url) === 'video') {
-        extractAudioFromVideo(mitem.url, (err, audioPath) => {
+        extractAudioFromVideo(mitem.url, exportDir, (err, audioPath) => {
           console.log(err)
           if (err) return cb(err);
           mediaAudiosPaths.push(audioPath);
@@ -329,7 +339,7 @@ const generateSlideAudioFromMedia = slide => cb => {
           })
         })
       } else if (['image', 'gif'].indexOf(utils.getFileType(mitem.url))) {
-        generateSilentAudio(5000, (err, audioPath) => {
+        generateSilentAudio(5000, exportDir, (err, audioPath) => {
           console.log(err)
           if (err) return cb(err);
           mediaAudiosPaths.push(audioPath);
@@ -347,7 +357,7 @@ const generateSlideAudioFromMedia = slide => cb => {
     console.log(err)
     if (err) return cb(err);
     console.log('================= combining audios ============================')
-    combineAudios(mediaAudiosPaths, (err, audioPath) => {
+    combineAudios(mediaAudiosPaths, exportDir, (err, audioPath) => {
      console.log(err) 
       if (err) return cb(err);
       mediaAudiosPaths.forEach(p => {
@@ -364,7 +374,7 @@ const generateSlideAudioFromMedia = slide => cb => {
   })
 }
 
-function convertArticle({ article, video, videoId, withSubtitles }, callback) {
+function convertArticle({ article, video, videoId, withSubtitles, exportDir }, callback) {
   const convertFuncArray = [];
   let progress = 0;
   // const slidesHtml = article.slidesHtml.slice().filter(slide => slide.text && slide.audio);
@@ -442,7 +452,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
       } else {
         slide.media.forEach((mitem) => {
           // if (process.env.NODE_ENV !== 'production') {
-            verifySlidesMediaFuncArray.push(verifyMedia(slide, mitem));
+            verifySlidesMediaFuncArray.push(verifyMedia(slide, mitem, exportDir));
           // }
         })
       }
@@ -457,10 +467,10 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
 
       slidesHtml.forEach((slide) => {
         if (slide.audio) {
-          downAudioFuncArray.push(downloadSlideAudio(slide));
+          downAudioFuncArray.push(downloadSlideAudio(slide, exportDir));
         } else {
           console.log('doesnt have audio, generating audio from media instead')
-          downAudioFuncArray.push(generateSlideAudioFromMedia(slide))
+          downAudioFuncArray.push(generateSlideAudioFromMedia(slide, exportDir))
         }
       })
       console.log('downloading audios', slidesHtml.length, slidesHtml);
@@ -530,7 +540,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                 type: 'image',
               }];
             }
-            convertMedias(slide.media, slide.templates, audioUrl, slide.position, video.translationText, convertCallback);
+            convertMedias(slide.media, slide.templates, audioUrl, slide.position, video.translationText, exportDir, convertCallback);
           }
           
           convertFuncArray.push(convert);
@@ -556,12 +566,12 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
 
           results = results.sort((a, b) => a.index - b.index);
           // Generate the user credits slides
-          utils.generateCreditsVideos(article, video, (err, creditsVideos) => {
+          utils.generateCreditsVideos(article, video, exportDir, (err, creditsVideos) => {
             if (err) {
               console.log('error creating credits videos', err);
             }
             // Generate the article references slides
-            utils.generateReferencesVideos(article.title, article.wikiSource, article.referencesList, video.translationText, {
+            utils.generateReferencesVideos(article.title, article.wikiSource, article.referencesList, video.translationText, exportDir, {
               onProgress: (progress) => {
                 if (progress && progress !== 'null') {
                   VideoModel.findByIdAndUpdate(videoId, {$set: { textReferencesProgress: progress }}).then((result) => {
@@ -584,8 +594,8 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                 if (results) {
                   finalVideos = finalVideos.concat(results);
                 }
-                // Add Share video
-                finalVideos.push({ fileName: 'cc_share.webm', });
+                // Add Share video (static shared asset, lives outside the export dir)
+                finalVideos.push({ fileName: path.join(__dirname, 'cc_share.webm'), });
                 if (creditsVideos && creditsVideos.length > 0) {
                   finalVideos = finalVideos.concat(creditsVideos);
                 }
@@ -594,6 +604,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                 }
                 
                 combineVideos(finalVideos, false, {
+                  dir: exportDir,
                   onProgress: (progress) => {
                     if (progress && progress !== 'null') {
                       VideoModel.findByIdAndUpdate(videoId, {$set: { combiningVideosProgress: progress }}).then(() => {
@@ -621,7 +632,7 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
                         }
                       });
                     }
-                    subtitles.generateSrtSubtitles(subtitledSlides, 1, (err, subs) => {
+                    subtitles.generateSrtSubtitles(subtitledSlides, 1, exportDir, (err, subs) => {
                       const cbResult = { videoPath };
                       if (err) {
                         console.log('error generating subtitles file', err);
@@ -662,14 +673,14 @@ function convertArticle({ article, video, videoId, withSubtitles }, callback) {
   })
 }
 
-function convertMedias(medias, templates, audio, slidePosition, translationText, callback = () => {}) {
+function convertMedias(medias, templates, audio, slidePosition, translationText, exportDir, callback = () => {}) {
   const convertMediaFuncArray = [];
   let videoDerivative = [];
   const trimVideo = !(templates && templates.some(template => template.toLowerCase() === CUSTOM_TEMPLATES.PLAYALL.toLowerCase()));
 
   medias.forEach((mitem, index) => {
     convertMediaFuncArray.push((singleCB) => {
-      const fileName = `videos/video-${parseInt(Date.now() + Math.random() * 100000)}.webm`;
+      const fileName = path.join(exportDir, `video-${parseInt(Date.now() + Math.random() * 100000)}.webm`);
       utils.getMediaInfo(mitem.url, (err, info) => {
         let subtext = '';
         if (err) {
@@ -759,9 +770,10 @@ function convertMedias(medias, templates, audio, slidePosition, translationText,
     if (err) return callback(err);
     const slideVideos = outputInfo.sort((a, b) => a.index - b.index);
     console.log('combining videos of submedia');
-    const finalSlideVidPath = path.join(__dirname, 'videos', `slide_with_audio-${Date.now()}-${parseInt(Math.random() * 100000)}.webm`)
+    const finalSlideVidPath = path.join(exportDir, `slide_with_audio-${Date.now()}-${parseInt(Math.random() * 100000)}.webm`)
     if (medias.length > 1) {
       combineVideos(slideVideos, true, {
+        dir: exportDir,
         onEnd: (err, videoPath) => {
           if (err) return callback(err);
           return addAudioToVideo(videoPath, audio, finalSlideVidPath, { trimVideo }, (err, videoPath) => {

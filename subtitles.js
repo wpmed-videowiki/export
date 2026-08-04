@@ -64,7 +64,11 @@ function formatDuration(totalSeconds) {
 
 }
 
-function generateSrtSubtitles(slides, multiplyFactor, callback = () => {}) {
+function generateSrtSubtitles(slides, multiplyFactor, dir, callback = () => {}) {
+  if (typeof dir === 'function') {
+    callback = dir;
+    dir = path.join(__dirname, 'tmp');
+  }
   const slidesSlice = slides.slice();
   const slidesFuncArray = [];
   // First we get the duration of each video file in the slide
@@ -109,9 +113,9 @@ function generateSrtSubtitles(slides, multiplyFactor, callback = () => {}) {
 
     })
 
-    const commonsSubtitlesFilePath = path.join(__dirname, 'tmp', `subtitles-commons-${Date.now()}.srt`);
-    const vlcSubtitlesFilePath = path.join(__dirname, 'tmp', `subtitles-vlc-${Date.now()}.srt`);
-    const vttSubtitlesFilePath = path.join(__dirname, 'tmp', `subtitles-vtt-${Date.now()}.vtt`)
+    const commonsSubtitlesFilePath = path.join(dir, `subtitles-commons-${Date.now()}.srt`);
+    const vlcSubtitlesFilePath = path.join(dir, `subtitles-vlc-${Date.now()}.srt`);
+    const vttSubtitlesFilePath = path.join(dir, `subtitles-vtt-${Date.now()}.vtt`)
     
     // const commonsSubtitles = subList.map(sub => sub.commonsText.replace(/\[([0-9]+)\]/g, `<font size="1"><b>[$1]</b></font>`));
     const commonsSubtitles = subList.map(sub => sub.commonsText);

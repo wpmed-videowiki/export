@@ -373,7 +373,7 @@ function getMediaLicenseCode(url, callback) {
 }
 
 
-function getReferencesImage(title, wikiSource, references, translationText, callback) {
+function getReferencesImage(title, wikiSource, references, translationText, dir, callback) {
   if (!references) {
     setTimeout(() => {
       return callback(null, []);
@@ -412,7 +412,7 @@ function getReferencesImage(title, wikiSource, references, translationText, call
           { escape: (item) => item }, 
           (err, html) => {
             if (err) return cb(err);
-            const imageName = path.join(__dirname, 'tmp' , `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
+            const imageName = path.join(dir, `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
             webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'window', height: 'all'} }, function(err) {
               if (err) return cb(err);
               start += chunk.length;
@@ -431,7 +431,7 @@ function getReferencesImage(title, wikiSource, references, translationText, call
   }
 }
 
-function getCreditsImages({ title, wikiSource, wikiRevisionId }, extraUsers = [], translationText = {}, callback = () => {}) {
+function getCreditsImages({ title, wikiSource, wikiRevisionId }, extraUsers = [], translationText = {}, dir, callback = () => {}) {
   // console.log(`${wikiSource}/w/api.php?action=query&format=json&prop=contributors&titles=${title}&redirects`)
   request.get(`${wikiSource}/w/api.php?action=query&format=json&prop=contributors&titles=${encodeURIComponent(title)}&redirects`, (err, data) => {
     if (err) {
@@ -460,7 +460,7 @@ function getCreditsImages({ title, wikiSource, wikiRevisionId }, extraUsers = []
             { usersChunk: lodash.chunk(chunk, 8), start, usersRef, textCredits: translationText && translationText.text_credits ? translationText.text_credits : 'Text Credits' }, 
             { escape: (item) => item },
             (err, html) => {
-              const imageName = path.join(__dirname, 'tmp' , `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
+              const imageName = path.join(dir, `image-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
               webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'all', height: 'all'},  windowSize: { width: 1311
                 , height: 620 } }, function(err) {
                 start += chunk.length;
@@ -481,8 +481,8 @@ function getCreditsImages({ title, wikiSource, wikiRevisionId }, extraUsers = []
   })
 }
 
-function generateReferencesVideos(title, wikiSource, references, translationText, { onProgress, onEnd }) {
-  getReferencesImage(title, wikiSource, references, translationText, (err, images) => {
+function generateReferencesVideos(title, wikiSource, references, translationText, dir, { onProgress, onEnd }) {
+  getReferencesImage(title, wikiSource, references, translationText, dir, (err, images) => {
     if (err) return onEnd(err);
     if (!images || images.length === 0) return onEnd(null, []);
 
@@ -490,7 +490,7 @@ function generateReferencesVideos(title, wikiSource, references, translationText
     let doneCount = 0;
     images.forEach((image, index) => {
       function refVid(cb) {
-        const videoName = `videos/refvid-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
+        const videoName = path.join(dir, `refvid-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`);
         convertImageToSilentVideo(image.image, 2, false, videoName, (err) => {
           fs.unlink(image.image, () => {});
           doneCount ++;
@@ -512,18 +512,18 @@ function generateReferencesVideos(title, wikiSource, references, translationText
 }
 
 
-function generateCreditsVideos(article, { extraUsers, humanvoice, user, translationText }, callback) {
-  getCreditsImages(article, extraUsers, translationText, (err, images) => {
+function generateCreditsVideos(article, { extraUsers, humanvoice, user, translationText }, dir, callback) {
+  getCreditsImages(article, extraUsers, translationText, dir, (err, images) => {
     if (err) return callback(err);
     const refFuncArray = [];
 
     refFuncArray.push(function(cb) {
-      generateCCShareImage({translationText}, (err, imageInfo) => {
+      generateCCShareImage({translationText}, dir, (err, imageInfo) => {
         if (err) {
           return cb(null)
         }
 
-        const videoName = path.join(__dirname, 'tmp' , `video-cc-share-${Date.now()}${parseInt(Math.random() * 10000)}.webm`);
+        const videoName = path.join(dir, `video-cc-share-${Date.now()}${parseInt(Math.random() * 10000)}.webm`);
         convertImageToSilentVideo(imageInfo.image, 2, false, videoName, (err) => {
           fs.unlink(imageInfo.image, () => {});
           if (err) {
@@ -537,7 +537,7 @@ function generateCreditsVideos(article, { extraUsers, humanvoice, user, translat
     if (images || images.length !== 0) {
       images.forEach((image, index) => {
         function refVid(cb) {
-          const videoName = `videos/refvid-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`;
+          const videoName = path.join(dir, `refvid-${index}-${Date.now()}${parseInt(Math.random() * 10000)}.webm`);
           convertImageToSilentVideo(image.image, 2, false, videoName, (err) => {
             fs.unlink(image.image, () => {})
             if (err) {
@@ -553,11 +553,11 @@ function generateCreditsVideos(article, { extraUsers, humanvoice, user, translat
     // Add audio by if it has human voice
     if (humanvoice && user) {
       refFuncArray.push(function(cb) {
-        generateAudioByImage({username: user.username, voiceBy: translationText && translationText.voice_by ?translationText.voice_by : 'Voice by:'}, (err, imageInfo) => {
+        generateAudioByImage({username: user.username, voiceBy: translationText && translationText.voice_by ?translationText.voice_by : 'Voice by:'}, dir, (err, imageInfo) => {
           if (err) {
             return cb(err)
           }
-          const videoName = path.join(__dirname, 'tmp' , `video-audio-by-${Date.now()}${parseInt(Math.random() * 10000)}.webm`);
+          const videoName = path.join(dir, `video-audio-by-${Date.now()}${parseInt(Math.random() * 10000)}.webm`);
           convertImageToSilentVideo(imageInfo.image, 2, false, videoName, (err) => {
             fs.unlink(imageInfo.image, () => {});
             if (err) {
@@ -586,12 +586,12 @@ function checkMediaFileExists(fileUrl, callback = () => {}) {
   })
 }
 
-function generateCCShareImage({ translationText }, callback) {
+function generateCCShareImage({ translationText }, dir, callback) {
   ejs.renderFile(path.join(__dirname, 'templates', 'licence.ejs'),
-    { licence: translationText && translationText.licence ? translationText.licence : "You're free to share + adapt this video under CC-BY-SA 4.0" , }, 
+    { licence: translationText && translationText.licence ? translationText.licence : "You're free to share + adapt this video under CC-BY-SA 4.0" , },
     { escape: (item) => item },
     (err, html) => {
-      const imageName = path.join(__dirname, 'tmp' , `cc-share-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
+      const imageName = path.join(dir, `cc-share-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
       webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'all', height: 'all'},  windowSize: { width: 1311
         , height: 620 } }, function(err) {
           if (err) {
@@ -602,12 +602,12 @@ function generateCCShareImage({ translationText }, callback) {
   });
 }
 
-function generateAudioByImage({ username, voiceBy }, callback) {
+function generateAudioByImage({ username, voiceBy }, dir, callback) {
   ejs.renderFile(path.join(__dirname, 'templates', 'audio_by.ejs'),
-    { username, voiceBy }, 
+    { username, voiceBy },
     { escape: (item) => item },
     (err, html) => {
-      const imageName = path.join(__dirname, 'tmp' , `image-audio-by-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
+      const imageName = path.join(dir, `image-audio-by-${Date.now()}${parseInt(Math.random() * 10000)}.jpeg`);
       webshot(html, imageName, { siteType: 'html', defaultWhiteBackground: true, shotSize: { width: 'all', height: 'all'},  windowSize: { width: 1311
         , height: 620 } }, function(err) {
           if (err) {

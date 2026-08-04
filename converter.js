@@ -73,7 +73,7 @@ module.exports = {
 
   videoToSilentVideo({ video, duration, subtext, outputPath }, callback = () => {}) {
     if (video.split('.').pop().toLowerCase() === 'ogv') {
-      const tmpVidPath = path.join(__dirname, 'tmp', `tmpOgvVideo_${Date.now()}.webm`);
+      const tmpVidPath = path.join(path.dirname(path.resolve(outputPath)), `tmpOgvVideo_${Date.now()}.webm`);
       exec(`ffmpeg -y -i "${video}" ${tmpVidPath}`, (err, stdout, stderr) => {
         if (err) return callback(null, video);
         fs.unlink(video, () => {});
@@ -176,7 +176,7 @@ module.exports = {
         // OGV files have issue while getting their framrate, so we convert it to webm first
         updateFuncArray.push((cb) => {
           if (video.split('.').pop().toLowerCase() === 'ogv') {
-            const tmpVidPath = path.join(__dirname, 'tmp', `tmpOgvVideo_${Date.now()}.webm`);
+            const tmpVidPath = path.join(path.dirname(path.resolve(outputPath)), `tmpOgvVideo_${Date.now()}.webm`);
             exec(`ffmpeg -y -i "${video}" ${tmpVidPath}`, (err, stdout, stderr) => {
               if (err) return cb(null, video);
               return cb(null, tmpVidPath);
@@ -261,7 +261,7 @@ module.exports = {
 
   addFadeEffects(video, fadeDuration = 0.5, callback = () => {}) {
     // Fade duration is in seconds
-    const fadedPath = path.join(__dirname, 'tmp', `faded-${ parseInt(Date.now() + Math.random() * 100000)}-fade.webm`);
+    const fadedPath = path.join(path.dirname(path.resolve(video)), `faded-${ parseInt(Date.now() + Math.random() * 100000)}-fade.webm`);
     getVideoNumberOfFrames(video, (err, framesInfo) => {
       if (err) return callback(err);
       if (!framesInfo) return callback(new Error('Something went wrong getting number of frames'));
@@ -277,7 +277,7 @@ module.exports = {
   },
   addFadeInEffect(video, fadeDuration = 0.5, callback = () => {}) {
     // Fade duration is in seconds
-    const fadedPath = path.join(__dirname, 'tmp', `faded-${ parseInt(Date.now() + Math.random() * 100000)}-fade.webm`);
+    const fadedPath = path.join(path.dirname(path.resolve(video)), `faded-${ parseInt(Date.now() + Math.random() * 100000)}-fade.webm`);
     getVideoNumberOfFrames(video, (err, framesInfo) => {
       if (err) return callback(err);
       if (!framesInfo) return callback(new Error('Something went wrong getting number of frames'));
@@ -293,7 +293,7 @@ module.exports = {
   },
   addFadeOutEffect(video, fadeDuration = 0.5, callback = () => {}) {
     // Fade duration is in seconds
-    const fadedPath = path.join(__dirname, 'tmp', `faded-${ parseInt(Date.now() + Math.random() * 100000)}-fade.webm`);
+    const fadedPath = path.join(path.dirname(path.resolve(video)), `faded-${ parseInt(Date.now() + Math.random() * 100000)}-fade.webm`);
     getVideoNumberOfFrames(video, (err, framesInfo) => {
       if (err) return callback(err);
       if (!framesInfo) return callback(new Error('Something went wrong getting number of frames'));
@@ -328,7 +328,7 @@ module.exports = {
 
       // expand audio to match video duration
       getRemoteFileDuration(video, (err, videoDuration) => {
-        const tmpAudioPath = `tmp/${Date.now()}.mp3`;
+        const tmpAudioPath = path.join(path.dirname(path.resolve(outputPath)), `tmpExpandedAudio-${Date.now()}.mp3`);
         const expandCMD = `ffmpeg -i "${audio}" -vcodec copy -af apad -ss 00:00:00.000 -t ${new Date(videoDuration * 1000).toISOString().substr(11,8)} ${tmpAudioPath}`
         exec(expandCMD, (err) => {
           if (err) return callback(err);
@@ -344,10 +344,11 @@ module.exports = {
     })
   },
 
-  combineVideos(videos, silent, { onProgress = () => {}, onEnd = () => {} }) {
+  combineVideos(videos, silent, { onProgress = () => {}, onEnd = () => {}, dir = path.join(__dirname, 'videos') }) {
     const listName = parseInt(Date.now() + Math.random() * 100000);
-    const videoPath = `videos/${listName}.webm`;
-    fs.writeFile(`./${listName}.txt`, videos.map((video, index) => `file '${video.fileName}'`).join('\n'), (err, content) => {
+    const videoPath = path.join(dir, `${listName}.webm`);
+    const listPath = path.join(dir, `${listName}.txt`);
+    fs.writeFile(listPath, videos.map((video, index) => `file '${path.resolve(video.fileName)}'`).join('\n'), (err, content) => {
       if (err) {
         videos.forEach(video => {
           // fs.unlink(video.fileName, () => {});
@@ -366,7 +367,7 @@ module.exports = {
         // const command = `ffmpeg ${fileNames} \
         // -filter_complex "${filterComplex}concat=n=${videos.length}:v=1${!silent ? `:a=1` : ''}[outv]${!silent ? `[outa]` : ''}" \
         // -map "[outv]" ${!silent ? `-map "[outa]"` : ''} -crf 23 ${videoPath}`;
-        const command = `ffmpeg -y -f concat -safe 0 -i ${listName}.txt -c copy ${videoPath}`;
+        const command = `ffmpeg -y -f concat -safe 0 -i "${listPath}" -c copy "${videoPath}"`;
         exec(command, (err, stdout, stderr) => {
           if (err) {
             onEnd(err);
@@ -374,7 +375,7 @@ module.exports = {
             onEnd(null, `${videoPath}`);
           }
           // clean up
-          fs.unlink(`./${listName}.txt`, () => {});
+          fs.unlink(listPath, () => {});
           videos.forEach(video => {
             // fs.unlink(video.fileName, () => {});
           })
@@ -387,7 +388,7 @@ module.exports = {
   },
 
   slowVideoRate(videoPath, { onProgress = () => {}, onEnd = () => {}}) {
-    const slowVideoPath = path.join(__dirname, 'tmp', `${ parseInt(Date.now() + Math.random() * 100000)}-slow.webm`);
+    const slowVideoPath = path.join(path.dirname(path.resolve(videoPath)), `${ parseInt(Date.now() + Math.random() * 100000)}-slow.webm`);
     getRemoteFileDuration(videoPath, (err, totalDuration) => {
       if (err) {
         totalDuration = 0;
@@ -407,7 +408,11 @@ module.exports = {
     })
   },
 
-  extractAudioFromVideo(videoPath, callback = () => {}) {
+  extractAudioFromVideo(videoPath, dir, callback = () => {}) {
+    if (typeof dir === 'function') {
+      callback = dir;
+      dir = path.join(__dirname, 'tmp');
+    }
     // check if the video has audio stream
     // if so, extract the audio stream
     // else, generate a silent audio file with the video duration
@@ -416,7 +421,7 @@ module.exports = {
       if (err) return callback(err);
       // Has audio stream, extract it!
       if (stdout && stdout.trim()) {
-        const audioPath = path.join(__dirname, 'tmp', `${parseInt(Date.now() + Math.random() * 100000)}-extracted-audio.mp3`);
+        const audioPath = path.join(dir, `${parseInt(Date.now() + Math.random() * 100000)}-extracted-audio.mp3`);
         const cmd2 = `ffmpeg -y -i "${videoPath}" ${audioPath}`;
         exec(cmd2, (err) => {
           if (err) return callback(err);
@@ -426,7 +431,7 @@ module.exports = {
         // Doesnt have audio stream, get the video duration and generate silent file
         getRemoteFileDuration(videoPath, (err, duration) => {
           if (err) return callback(err);
-          generateSilentAudio(duration, (err, audioPath) => {
+          generateSilentAudio(duration, dir, (err, audioPath) => {
             if (err) return callback(err);
             return callback(null, audioPath)
           })
@@ -435,9 +440,13 @@ module.exports = {
     })
   },
 
-  generateSilentAudio: generateSilentAudio,  
-  combineAudios(audios, callback = () => {}) {
-    const audioPath = path.join(__dirname, 'tmp', `${parseInt(Date.now() + Math.random() * 100000)}-combined-audio.mp3`);
+  generateSilentAudio: generateSilentAudio,
+  combineAudios(audios, dir, callback = () => {}) {
+    if (typeof dir === 'function') {
+      callback = dir;
+      dir = path.join(__dirname, 'tmp');
+    }
+    const audioPath = path.join(dir, `${parseInt(Date.now() + Math.random() * 100000)}-combined-audio.mp3`);
     const inputs = audios.reduce((acc, a) => acc + ` -i "${a}"`, '')
     const fcomplex  = audios.map((a, index) => `[${index}:0]`).join('')
     const cmd = `ffmpeg${inputs} -filter_complex '${fcomplex}concat=n=${audios.length}:v=0:a=1[out]' -map '[out]' ${audioPath}`;
@@ -448,8 +457,12 @@ module.exports = {
   }
 }
 
-function generateSilentAudio(durationInSeconds, callback = () => {}) {
-    const audioPath = path.join(__dirname, 'tmp', `${parseInt(Date.now() + Math.random() * 100000)}-silent-audio.mp3`);
+function generateSilentAudio(durationInSeconds, dir, callback = () => {}) {
+    if (typeof dir === 'function') {
+      callback = dir;
+      dir = path.join(__dirname, 'tmp');
+    }
+    const audioPath = path.join(dir, `${parseInt(Date.now() + Math.random() * 100000)}-silent-audio.mp3`);
     const cmd = `ffmpeg -f lavfi -i anullsrc=r=44100:cl=mono -t ${durationInSeconds} -q:a 9 ${audioPath}`;
     exec(cmd, (err) => {
       if (err) return callback(err);
