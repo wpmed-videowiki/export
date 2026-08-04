@@ -21,6 +21,7 @@ const {
   getVideoNumberOfFrames,
   shouldMediaFileScale, 
   getFileType,
+  getFileExtension,
   silent
 } = require('./utils')
 const { generateSubtitle } = require('./subtitles');
@@ -72,7 +73,7 @@ module.exports = {
   },
 
   videoToSilentVideo({ video, duration, subtext, outputPath }, callback = () => {}) {
-    if (video.split('.').pop().toLowerCase() === 'ogv') {
+    if (getFileExtension(video) === 'ogv') {
       const tmpVidPath = path.join(path.dirname(path.resolve(outputPath)), `tmpOgvVideo_${Date.now()}.webm`);
       exec(`ffmpeg -y -i "${video}" ${tmpVidPath}`, (err, stdout, stderr) => {
         if (err) return callback(null, video);
@@ -175,7 +176,7 @@ module.exports = {
         let command;
         // OGV files have issue while getting their framrate, so we convert it to webm first
         updateFuncArray.push((cb) => {
-          if (video.split('.').pop().toLowerCase() === 'ogv') {
+          if (getFileExtension(video) === 'ogv') {
             const tmpVidPath = path.join(path.dirname(path.resolve(outputPath)), `tmpOgvVideo_${Date.now()}.webm`);
             exec(`ffmpeg -y -i "${video}" ${tmpVidPath}`, (err, stdout, stderr) => {
               if (err) return cb(null, video);

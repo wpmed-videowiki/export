@@ -241,7 +241,7 @@ const verifyMedia = (slide, mitem, exportDir) => (cb) => {
     return cb();
   }
   let slideMediaUrl = mitem.origianlUrl || mitem.url;
-  const tmpMediaName = path.join(exportDir, `downTmpMedia-${Date.now()}-${parseInt(Math.random() * 10000)}.${slideMediaUrl.split('.').pop()}`);
+  const tmpMediaName = path.join(exportDir, `downTmpMedia-${Date.now()}-${parseInt(Math.random() * 10000)}.${utils.getFileExtension(slideMediaUrl)}`);
   console.log('veirying', slideMediaUrl)
 
   if (slideMediaUrl.indexOf('400px-') !== -1) {
@@ -269,8 +269,8 @@ const verifyMedia = (slide, mitem, exportDir) => (cb) => {
             }
             // If the width is larger than the default video width get a thumbnail image instead
             const imageWidth = parseInt(dimentions.split('x')[0]);
-            if ((imageWidth > VIDEO_WIDTH && mitem.thumburl) || tmpMediaName.split('.').pop().toLowerCase() === 'svg') {
-              const tmpThumbName = path.join(exportDir, `downTmpThumb-${Date.now()}-${parseInt(Math.random() * 10000)}.${mitem.thumburl.split('.').pop()}`);
+            if ((imageWidth > VIDEO_WIDTH && mitem.thumburl) || utils.getFileExtension(tmpMediaName) === 'svg') {
+              const tmpThumbName = path.join(exportDir, `downTmpThumb-${Date.now()}-${parseInt(Math.random() * 10000)}.${utils.getFileExtension(mitem.thumburl)}`);
               utils.downloadMediaFile(mitem.thumburl, tmpThumbName, (err) => {
                 if (err) {
                   return cb();
@@ -681,7 +681,9 @@ function convertMedias(medias, templates, audio, slidePosition, translationText,
   medias.forEach((mitem, index) => {
     convertMediaFuncArray.push((singleCB) => {
       const fileName = path.join(exportDir, `video-${parseInt(Date.now() + Math.random() * 100000)}.webm`);
-      utils.getMediaInfo(mitem.url, (err, info) => {
+      // mitem.url is swapped for the placeholder image when a download fails,
+      // so credit has to be looked up against the source url we started from
+      utils.getMediaInfo(mitem.origianlUrl || mitem.url, (err, info) => {
         let subtext = '';
         if (err) {
           console.log('error fetching media author and licence', err, medias);
@@ -705,7 +707,7 @@ function convertMedias(medias, templates, audio, slidePosition, translationText,
         }
         
         let slideMediaUrl = mitem.tmpUrl || mitem.origianlUrl || mitem.url;
-        if (slideMediaUrl.split('.').pop().toLowerCase() === 'svg') {
+        if (utils.getFileExtension(slideMediaUrl) === 'svg') {
           slideMediaUrl = mitem.thumburl || mitem.url;
           console.log("FOund SVG file", slideMediaUrl)
         }

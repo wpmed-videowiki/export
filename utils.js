@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const request = require('request');
+const { USER_AGENT } = require('./constants');
+const request = require('request').defaults({ headers: { 'User-Agent': USER_AGENT } });
 const mp3Duration = require('mp3-duration');
 const childProcess = require('child_process');
 // ffmpeg logs everything to stderr; exec kills the child process once
@@ -42,8 +43,22 @@ function normalizeTitle(title) {
   return decodeURI(title.replace(new RegExp('%2C', 'g'), ','));
 }
 
-function getOriginalCommonsUrl(thumbnailPath) {
-  if (!thumbnailPath) return null
+// Commons serves media urls with tracking params appended
+// (?utm_source=commons.wikimedia.org&...), so any file name, extension or page
+// title derived from a url has to be read from the path alone
+function stripUrlQuery(url) {
+  if (!url) return url;
+  return url.split('?')[0].split('#')[0];
+}
+
+function getFileExtension(fileUrl) {
+  if (!fileUrl) return '';
+  return stripUrlQuery(fileUrl).split('.').pop().toLowerCase();
+}
+
+function getOriginalCommonsUrl(thumbnailPathWithQuery) {
+  if (!thumbnailPathWithQuery) return null
+    const thumbnailPath = stripUrlQuery(thumbnailPathWithQuery);
 
     // Check if it's a thumbnail image or not (can be a video/gif)
     if (thumbnailPath.indexOf('thumb') > -1 ) {
@@ -70,7 +85,7 @@ function getOriginalCommonsUrl(thumbnailPath) {
 }
 
 function getFileType(fileUrl) {
-  const extension = fileUrl.split('.').pop().toLowerCase();
+  const extension = getFileExtension(fileUrl);
   if (IMAGE_EXTENSIONS.indexOf(extension) > -1) return 'image';
   if (VIDEOS_EXTESION.indexOf(extension) > -1) return 'video';
   if (GIF_EXTESIONS.indexOf(extension) > -1) return 'gif';
@@ -78,7 +93,7 @@ function getFileType(fileUrl) {
 }
 
 function getVideoFramerate(videoUrl, callback) {
-  exec(`ffprobe -v 0 -of csv=p=0 -select_streams 0 -show_entries stream=r_frame_rate ${videoUrl}`, (err, stdout, stderr) => {
+  exec(`ffprobe -v 0 -of csv=p=0 -select_streams 0 -show_entries stream=r_frame_rate "${videoUrl}"`, (err, stdout, stderr) => {
     if (err) {
       return callback(err);
     }
@@ -92,7 +107,7 @@ function getVideoFramerate(videoUrl, callback) {
 }
 
 function getFileDimentions(videoUrl, callback) {
-  exec(`ffprobe -v error -show_entries stream=width,height -of csv=p=0:s=x ${videoUrl}`, (err, stdout, stderr) => {
+  exec(`ffprobe -v error -show_entries stream=width,height -of csv=p=0:s=x "${videoUrl}"`, (err, stdout, stderr) => {
     if (err) {
       return callback(err);
     }
@@ -127,7 +142,8 @@ function getVideoNumberOfFrames(url, callback) {
 }
 
 function downloadMediaFile(url, destination, callback = () => {}) {
-  exec(`curl ${url} --output ${destination}`, (err, stdout, stderr) => {
+  const userAgentArg = USER_AGENT ? `-A "${USER_AGENT}"` : '';
+  exec(`curl -f -L ${userAgentArg} "${url}" --output "${destination}"`, (err, stdout, stderr) => {
     if (err) {
       return callback(err);
     }
@@ -189,7 +205,7 @@ function getFilesDuration(urls, callback) {
 }
 
 function getRemoteFile(url, callback) {
-  const filePath = './tmp/file-' + parseInt(Date.now() + Math.random() * 1000000) + "." + url.split('.').pop();
+  const filePath = './tmp/file-' + parseInt(Date.now() + Math.random() * 1000000) + "." + getFileExtension(url);
   request
     .get(url)
     .on('error', (err) => {
@@ -289,7 +305,8 @@ function getMediaInfo(url, callback) {
   } else {
     wikijs({
       apiUrl: 'https://commons.wikimedia.org/w/api.php',
-      origin: null
+      origin: null,
+      headers: { 'User-Agent': USER_AGENT }
     })
     // .page('File:Match_Cup_Norway_2018_88.jpg')
     .page(`File:${filePageTitle}`)
@@ -345,8 +362,10 @@ function getMediaLicenseCode(url, callback) {
     request.get(infoUrl, (err, res) => {
       if (err) return callback(err);
       let licence = '';
-      const body = JSON.parse(res.body);
       try {
+        // the api answers with plain text on rejection (rate limit, user-agent
+        // policy), so this parse has to stay inside the try
+        const body = JSON.parse(res.body);
         if (body.query && body.query.pages && body.query.pages.length > 0 ) {
           const { cirrusdoc } = body.query.pages[0];
           const { source_text } = cirrusdoc[0].source;
@@ -692,6 +711,8 @@ module.exports = {
   getFileDimentions,
   getVideoFramerate,
   getFileType,
+  getFileExtension,
+  stripUrlQuery,
   downloadMediaFile,
   getReferencesImage,
   getOriginalCommonsUrl,
