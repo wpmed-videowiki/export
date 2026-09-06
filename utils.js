@@ -671,10 +671,11 @@ function convertImageToSilentVideo(image, duration, shouldOverlayWhiteBackground
     })
   })
 }
+function getFileNameFromThumb (thumbnailPathWithQuery) {
 
-function getFileNameFromThumb (thumbnailPath) {
+  if (!thumbnailPathWithQuery) return null
 
-  if (!thumbnailPath) return null
+  const thumbnailPath = stripUrlQuery(thumbnailPathWithQuery);
 
   // Check if it's a thumbnail image or not (can be a video/gif)
   if (thumbnailPath.indexOf('thumb') > -1 ) {
